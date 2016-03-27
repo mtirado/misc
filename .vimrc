@@ -32,12 +32,3 @@ highlight TabLineSel 	ctermbg=black	ctermfg=white
 highlight StatusLine 	ctermbg=white 	ctermfg=black
 highlight StatusLineNC 	ctermbg=cyan 	ctermfg=black
 highlight VertSplit 	ctermbg=black 	ctermfg=black
-
-
-" change lgrep to grep, and lopen to copen to share grep list window with all
-" vim windows. add argument --exclude *.{json|xml} to filter out file types
-command! -nargs=+ Grep execute 'silent lgrep! -I -r -n --exclude=*~ . -e <args>' | lopen 18
-:nmap <leader>g :Grep <c-r>=expand("<cword>")<cr><cr>
-
-
-
