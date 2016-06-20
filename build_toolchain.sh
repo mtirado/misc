@@ -1,6 +1,7 @@
 #!/bin/bash
 # GNU/Linux Toolchain build script.
 # Derived from Linux From Scratch
+# For use with jettison PODROOT_HOME_OVERRIDE special build
 #
 # only tested using i686! some x86_64 steps have been commented out,
 # but you may need to check LFS guide to make sure they're correct.
@@ -68,10 +69,7 @@ TAR=tar-1.29
 #DEJAGNU=dejagnu-1.5.1
 #CHECK=check-0.9.14
 
-BUILD_START=$(date)
-echo "Build started at $BUILD_START"
-
-# arg 1 is archive file, arg 2 destination directory, 3 is to strip components
+# arg 1: filepath, arg 2: destination directory, arg 3: additional arguments
 decompress()
 {
 	if [ -z "$1" ]; then
@@ -102,6 +100,8 @@ decompress()
 	tar $OPTS -xf $PKGDIR/$PKG -C $DEST
 }
 
+BUILD_START=$(date)
+echo "Build started at $BUILD_START"
 
 #disable stuff?
 #if [ 5 -eq 7 ]; then
