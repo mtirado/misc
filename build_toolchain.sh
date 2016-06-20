@@ -11,6 +11,8 @@ set +h
 set -e
 umask 022
 
+GLIBC_KERNELVERSION=4.1.0
+
 # parallel jobs compiler option
 JOBS='-j2'
 
@@ -28,9 +30,6 @@ export LC_ALL=C
 mkdir -p $PREFIX
 mkdir -p $SRCDIR
 
-GLIBC_KERNELVERSION=4.1.0
-
-# TODO -- generic extract function instead of hardcoding .xz .gz etc
 # source packages
 BINUTILS=binutils-2.26
 GMP=gmp-6.1.0
@@ -71,15 +70,46 @@ TAR=tar-1.29
 
 BUILD_START=$(date)
 echo "Build started at $BUILD_START"
+
+# arg 1 is archive file, arg 2 destination directory, 3 is to strip components
+decompress()
+{
+	if [ -z "$1" ]; then
+		echo "decompress missing file parameter"
+		exit -1
+	fi
+	if [ -z "$2" ]; then
+		echo "decompress missing destination directory"
+		exit -1
+	fi
+	DEST=$2
+	OPTS=""
+	if [ -n "$3" ]; then
+		OPTS="$3"
+	fi
+
+	if [ -e $PKGDIR/$1.tar.xz ]; then
+		PKG="$1.tar.xz"
+	elif [ -e $PKGDIR/$1.tar.gz ]; then
+		PKG="$1.tar.gz"
+	elif [ -e $PKGDIR/$1.tar.bz2 ]; then
+		PKG="$1.tar.bz2"
+	else
+		echo "archive not found or not recognized: $PKG"
+		exit -1
+	fi
+	echo "decompressing $PKG"
+	tar $OPTS -xf $PKGDIR/$PKG -C $DEST
+}
+
+
 #disable stuff?
 #if [ 5 -eq 7 ]; then
-
 
 echo "###############################################################"
 echo "BINUTILS - PASS 1"
 echo "###############################################################"
-echo "extracting: $BINUTILS"
-tar -xf $PKGDIR/$BINUTILS.tar.gz -C $SRCDIR
+decompress $BINUTILS $SRCDIR
 mkdir $SRCDIR/$BINUTILS-build
 cd $SRCDIR/$BINUTILS-build
 
@@ -108,18 +138,14 @@ rm -rf $SRCDIR/$BINUTILS-build
 echo "###############################################################"
 echo "GCC - PASS 1"
 echo "###############################################################"
-echo "extracting: $GCC"
-tar -xf $PKGDIR/$GCC.tar.gz -C $SRCDIR
+decompress $GCC $SRCDIR
 #move math code into expected locations
-echo "extracting: $MPFR"
 mkdir -v $SRCDIR/$GCC/mpfr
-tar --strip-components=1 -xf $PKGDIR/$MPFR.tar.gz -C $SRCDIR/$GCC/mpfr
-echo "extracting: $GMP"
+decompress $MPFR $SRCDIR/$GCC/mpfr --strip-components=1
 mkdir -v $SRCDIR/$GCC/gmp
-tar --strip-components=1 -xf $PKGDIR/$GMP.tar.xz -C $SRCDIR/$GCC/gmp
-echo "extracting: $MPC"
+decompress $GMP $SRCDIR/$GCC/gmp --strip-components=1
 mkdir -v $SRCDIR/$GCC/mpc
-tar --strip-components=1 -xf $PKGDIR/$MPC.tar.gz -C $SRCDIR/$GCC/mpc
+decompress $MPC $SRCDIR/$GCC/mpc --strip-components=1
 
 cd $SRCDIR/$GCC
 echo "adjusting paths."
@@ -181,7 +207,7 @@ echo "###############################################################"
 echo "LINUX API HEADER"
 echo "###############################################################"
 echo "installing linux headers"
-tar xf $PKGDIR/$LINUX.tar.xz -C $SRCDIR
+decompress $LINUX $SRCDIR
 cd $SRCDIR/$LINUX
 make mrproper
 make INSTALL_HDR_PATH=dest headers_install
@@ -195,8 +221,7 @@ rm -rf $SRCDIR/$LINUX
 echo "###############################################################"
 echo "GLIBC"
 echo "###############################################################"
-echo "extracting: $GLIBC"
-tar -xf $PKGDIR/$GLIBC.tar.xz -C $SRCDIR
+decompress $GLIBC $SRCDIR
 mkdir $SRCDIR/$GLIBC-build
 
 cd $SRCDIR/$GLIBC
@@ -254,8 +279,7 @@ rm -rf $SRCDIR/$GLIBC
 rm -rf $SRCDIR/$GLIBC-build
 
 
-echo "extracting fresh gcc sources"
-tar -xf $PKGDIR/$GCC.tar.gz -C $SRCDIR
+decompress $GCC $SRCDIR
 echo "building libstdc++-v3"
 echo "###############################################################"
 echo "LIBSTDC++"
@@ -290,8 +314,7 @@ echo "BINUTILS - PASS 2"
 echo "###############################################################"
 
 echo "binutils pass 2"
-echo "extracting: $BINUTILS"
-tar -xf $PKGDIR/$BINUTILS.tar.gz -C $SRCDIR
+decompress $BINUTILS $SRCDIR
 mkdir $SRCDIR/$BINUTILS-build
 cd $SRCDIR/$BINUTILS-build
 
@@ -326,18 +349,14 @@ rm -rf $SRCDIR/$BINUTILS-build
 echo "###############################################################"
 echo "GCC - PASS 2"
 echo "###############################################################"
-echo "extracting: $GCC"
-tar -xf $PKGDIR/$GCC.tar.gz -C $SRCDIR
-#move math code into expected location
-echo "extracting: $MPFR"
+decompress $GCC $SRCDIR
+#move math code into expected locations
 mkdir -v $SRCDIR/$GCC/mpfr
-tar --strip-components=1 -xf $PKGDIR/$MPFR.tar.gz -C $SRCDIR/$GCC/mpfr
-echo "extracting: $GMP"
+decompress $MPFR $SRCDIR/$GCC/mpfr --strip-components=1
 mkdir -v $SRCDIR/$GCC/gmp
-tar --strip-components=1 -xf $PKGDIR/$GMP.tar.xz -C $SRCDIR/$GCC/gmp
-echo "extracting: $MPC"
+decompress $GMP $SRCDIR/$GCC/gmp --strip-components=1
 mkdir -v $SRCDIR/$GCC/mpc
-tar --strip-components=1 -xf $PKGDIR/$MPC.tar.gz -C $SRCDIR/$GCC/mpc
+decompress $MPC $SRCDIR/$GCC/mpc --strip-components=1
 
 echo "fixing limits"
 cd $SRCDIR/$GCC
@@ -415,8 +434,7 @@ rm -rf $SRCDIR/$GCC-build
 echo "###############################################################"
 echo "BASH"
 echo "###############################################################"
-echo "extracting: $BASH"
-tar -xf $PKGDIR/$BASH.tar.gz -C $SRCDIR
+decompress $BASH $SRCDIR
 
 cd $SRCDIR/$BASH
 
@@ -444,8 +462,7 @@ rm -rf $SRCDIR/$BASH-build
 echo "###############################################################"
 echo "BZIP2"
 echo "###############################################################"
-echo "extracting: $BZIP2"
-tar -xf $PKGDIR/$BZIP2.tar.gz -C $SRCDIR
+decompress $BZIP2 $SRCDIR
 
 cd $SRCDIR/$BZIP2
 CCP=$TARGET-ccp	                                        \
@@ -466,8 +483,7 @@ rm -rf $SRCDIR/$BZIP2-build
 echo "###############################################################"
 echo "COREUTILS"
 echo "###############################################################"
-echo "extracting: $COREUTILS"
-tar -xf $PKGDIR/$COREUTILS.tar.xz -C $SRCDIR
+decompress $COREUTILS $SRCDIR
 
 cd $SRCDIR/$COREUTILS
 
@@ -493,8 +509,7 @@ rm -rf $SRCDIR/$COREUTILS-build
 echo "###############################################################"
 echo "DIFFUTILS"
 echo "###############################################################"
-echo "extracting: $DIFFUTILS"
-tar -xf $PKGDIR/$DIFFUTILS.tar.xz -C $SRCDIR
+decompress $DIFFUTILS $SRCDIR
 
 cd $SRCDIR/$DIFFUTILS
 CCP=$TARGET-ccp	                                        \
@@ -515,8 +530,7 @@ rm -rf $SRCDIR/$DIFFUTILS-build
 echo "###############################################################"
 echo "FILE"
 echo "###############################################################"
-echo "extracting: $FILE"
-tar -xf $PKGDIR/$FILE.tar.gz -C $SRCDIR
+decompress $FILE $SRCDIR
 
 cd $SRCDIR/$FILE
 CCP=$TARGET-ccp	                                        \
@@ -536,8 +550,7 @@ rm -rf $SRCDIR/$FILE-build
 echo "###############################################################"
 echo "FINDUTILS"
 echo "###############################################################"
-echo "extracting: $FINDUTILS"
-tar -xf $PKGDIR/$FINDUTILS.tar.gz -C $SRCDIR
+decompress $FINDUTILS $SRCDIR
 
 cd $SRCDIR/$FINDUTILS
 CCP=$TARGET-ccp	                                        \
@@ -558,8 +571,7 @@ rm -rf $SRCDIR/$FINDUTILS-build
 echo "###############################################################"
 echo "GAWK"
 echo "###############################################################"
-echo "extracting: $GAWK"
-tar -xf $PKGDIR/$GAWK.tar.xz -C $SRCDIR
+decompress $GAWK $SRCDIR
 
 cd $SRCDIR/$GAWK
 CCP=$TARGET-ccp	                                        \
@@ -580,8 +592,7 @@ rm -rf $SRCDIR/$GAWK-build
 echo "###############################################################"
 echo "GREP"
 echo "###############################################################"
-echo "extracting: $GREP"
-tar -xf $PKGDIR/$GREP.tar.xz -C $SRCDIR
+decompress $GREP $SRCDIR
 
 cd $SRCDIR/$GREP
 CCP=$TARGET-ccp	                                        \
@@ -603,8 +614,7 @@ rm -rf $SRCDIR/$GREP-build
 echo "###############################################################"
 echo "GZIP"
 echo "###############################################################"
-echo "extracting: $GZIP"
-tar -xf $PKGDIR/$GZIP.tar.xz -C $SRCDIR
+decompress $GZIP $SRCDIR
 
 cd $SRCDIR/$GZIP
 CCP=$TARGET-ccp	                                        \
@@ -626,8 +636,7 @@ rm -rf $SRCDIR/$GZIP-build
 echo "###############################################################"
 echo "M4"
 echo "###############################################################"
-echo "extracting: $M4"
-tar -xf $PKGDIR/$M4.tar.xz -C $SRCDIR
+decompress $M4 $SRCDIR
 
 cd $SRCDIR/$M4
 CCP=$TARGET-ccp	                                        \
@@ -649,8 +658,7 @@ rm -rf $SRCDIR/$M4-build
 echo "###############################################################"
 echo "MAKE"
 echo "###############################################################"
-echo "extracting: $MAKE"
-tar -xf $PKGDIR/$MAKE.tar.gz -C $SRCDIR
+decompress $MAKE $SRCDIR
 
 cd $SRCDIR/$MAKE
 CCP=$TARGET-ccp	                                        \
@@ -673,8 +681,7 @@ rm -rf $SRCDIR/$MAKE-build
 echo "###############################################################"
 echo "PATCH"
 echo "###############################################################"
-echo "extracting: $PATCH"
-tar -xf $PKGDIR/$PATCH.tar.xz -C $SRCDIR
+decompress $PATCH $SRCDIR
 
 cd $SRCDIR/$PATCH
 CCP=$TARGET-ccp	                                        \
@@ -696,8 +703,7 @@ rm -rf $SRCDIR/$PATCH-build
 echo "###############################################################"
 echo "TAR"
 echo "###############################################################"
-echo "extracting: $TAR"
-tar -xf $PKGDIR/$TAR.tar.xz -C $SRCDIR
+decompress $TAR $SRCDIR
 
 cd $SRCDIR/$TAR
 CCP=$TARGET-ccp	                                        \
@@ -718,8 +724,7 @@ rm -rf $SRCDIR/$TAR-build
 echo "###############################################################"
 echo "XZ"
 echo "###############################################################"
-echo "extracting: $XZ"
-tar -xf $PKGDIR/$XZ.tar.gz -C $SRCDIR
+decompress $XZ $SRCDIR
 
 cd $SRCDIR/$XZ
 CCP=$TARGET-ccp	                                        \
@@ -740,8 +745,7 @@ rm -rf $SRCDIR/$XZ-build
 echo "###############################################################"
 echo "SED"
 echo "###############################################################"
-echo "extracting: $SED"
-tar -xf $PKGDIR/$SED.tar.gz -C $SRCDIR
+decompress $SED $SRCDIR
 
 cd $SRCDIR/$SED
 CCP=$TARGET-ccp	                                        \
@@ -757,7 +761,6 @@ make install
 cd $TOPDIR
 rm -rf $SRCDIR/$SED
 rm -rf $SRCDIR/$SED-build
-
 
 
 set +e
