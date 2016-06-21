@@ -513,7 +513,7 @@ cd $SRCDIR/$BASH
 
 ./configure --prefix=/usr                    \
             --bindir=/bin                    \
-            --docdir=/usr/share/doc/bash-4.3 \
+            --docdir=/usr/share/doc/$BASH    \
             --without-bash-malloc
 #            --with-installed-readline
 make $JOBS
@@ -693,7 +693,7 @@ echo "extracting $XZ"
 decompress $XZ $SRCDIR
 cd $SRCDIR/$XZ
 
-./configure --prefix=/usr --docdir=/usr/share/doc/xz-5.0.5
+./configure --prefix=/usr --docdir=/usr/share/doc/$XZ
 make $JOBS
 #make check
 make install
@@ -814,7 +814,7 @@ make $JOBS
 #make check
 make install
 
-#make -C doc install-html docdir=/usr/share/doc/tar-1.28
+#make -C doc install-html docdir=/usr/share/doc/$TAR
 
 
 cd $TOPDIR
@@ -839,7 +839,7 @@ cd $SRCDIR/$UTIL_LINUX
 #ADJTIME_PATH=/var/lib/hwclock/adjtime	\
 	./configure			\
 	--disable-use-tty-group		\
-	--docdir=/usr/share/doc/util-linx-2.25.1
+	--docdir=/usr/share/doc/$UTIL_LINUX
 make $JOBS
 #make check
 #TODO see notes about the tests for this..
