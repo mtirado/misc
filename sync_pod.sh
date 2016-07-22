@@ -4,4 +4,4 @@
 set -e
 NEWROOT=$HOME/newroot
 echo "NEWROOT -- $NEWROOT"
-rsync -av $NEWROOT/* "$HOME"
+rsync -av --delete-after $NEWROOT/* "$HOME"
