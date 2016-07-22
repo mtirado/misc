@@ -25,15 +25,13 @@ ln -sv /podhome/toolchain/lib/libstdc++.so{,.6} $HOME/usr/lib
 # sed "s|/podhome/toolchain|/usr|" $HOME/toolchain/lib/libstdc++.la > $HOME/toolchain/lib/libstdc++.la
 
 # some programs expect /etc/mtab
-ln -sv /podhome/toolchain/proc/self/mounts $HOME/etc/mtab
+ln -sv /proc/self/mounts $HOME/etc/mtab
 # this linker doesn't exist yet
 ln -sv /podhome/toolchain/lib/ld-linux.so.2 $HOME/lib
 
 
 
-#passwd and group files
 echo "creating /etc/passwd"
-#create some users
 echo "root:x:0:0:root:/root:/bin/bash
 nobody:x:99:99:Unprivileged User:/dev/null:/bin/false"> $HOME/etc/passwd
 
@@ -49,7 +47,10 @@ mail:x:34
 nogroup:x:99:
 users:x:999:"> $HOME/etc/group
 
-
+echo "creating /etc/fstab"
+echo "# default fstab
+/dev/sda1     /          ext4   defaults  1 1
+proc          /proc      proc   defaults  0 0" > $HOME/etc/fstab
 
 
 
