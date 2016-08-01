@@ -2,38 +2,56 @@
 # create fake root filesystem in home directory
 # each directory marked with `home rwxR` gets mounted as that
 # directory in pod's root. use with -DPODROOT_HOME_OVERRIDE jettison hack
-rm -rfv $HOME/{bin,boot,opt,etc,include,lib,libexec,man,sbin,share,var,usr}
-mkdir -v $HOME/{bin,boot,opt,etc,include,lib,libexec,man,sbin,share,var,usr}
-mkdir -v $HOME/var/log
-mkdir -v $HOME/var/tmp
-chmod 01777 $HOME/var/tmp
-mkdir -v $HOME/usr/{bin,sbin,lib,include,share,local}
-mkdir -v $HOME/usr/local/{bin,sbin,lib,include,share}
 
-echo "creating directories, and symlinks"
+NEWROOT="$HOME/newroot"
+rm -rfv $HOME/{bin,boot,opt,etc,include,lib,libexec,sbin,var,usr}
+mkdir -vp $NEWROOT/{dev,proc,bin,boot,opt,etc,include,lib,libexec,sbin,var,usr}
+chmod -v 0750 $NEWROOT/boot
+mkdir -vp $NEWROOT/var/log
+chmod -v 0750 $NEWROOT/var/log
+mkdir -vp $NEWROOT/tmp
+mkdir -vp $NEWROOT/var/tmp
+chmod -v 01777 $NEWROOT/tmp
+chmod -v 01777 $NEWROOT/var/tmp
+mkdir -vp $NEWROOT/usr/{bin,sbin,lib,include,share,local}
+mkdir -vp $NEWROOT/usr/local/{bin,sbin,lib,include,share}
+chmod -v 0750 $NEWROOT/sbin
+chmod -v 0750 $NEWROOT/usr/sbin
+chmod -v 0750 $NEWROOT/usr/local/sbin
+# setup PODROOT_HOME directories
+ln -sv $NEWROOT/bin     $HOME/bin
+ln -sv $NEWROOT/boot    $HOME/boot
+ln -sv $NEWROOT/etc     $HOME/etc
+ln -sv $NEWROOT/include $HOME/include
+ln -sv $NEWROOT/lib     $HOME/lib
+ln -sv $NEWROOT/libexec $HOME/libexec
+ln -sv $NEWROOT/sbin    $HOME/sbin
+ln -sv $NEWROOT/var     $HOME/var
+ln -sv $NEWROOT/usr     $HOME/usr
+
 
 #create 64bit /lib64 /usr/lib64 /usr/local/lib64 here if you need
 
 echo "creating expected symlinks"
-ln -sv /bin/bash $HOME/bin/sh
-ln -sv /podhome/toolchain/bin/{bash,cat,echo,pwd} $HOME/bin
+ln -sv /bin/bash $NEWROOT/bin/sh
+ln -sv /podhome/toolchain/bin/{bash,cat,echo,pwd} $NEWROOT/bin/
 #ln -sv $TOOLCHAIN/bin/perl /usr/bin
-ln -sv /podhome/toolchain/lib/libgcc_s.so{,.1} $HOME/usr/lib
-ln -sv /podhome/toolchain/lib/libstdc++.so{,.6} $HOME/usr/lib
+ln -sv /podhome/toolchain/lib/libgcc_s.so{,.1} $NEWROOT/usr/lib/
+ln -sv /podhome/toolchain/lib/libstdc++.so{,.6} $NEWROOT/usr/lib/
 
 # stdc++ static
-# sed "s|/podhome/toolchain|/usr|" $HOME/toolchain/lib/libstdc++.la > $HOME/toolchain/lib/libstdc++.la
+# sed "s|/podhome/toolchain|/usr|" $HOME/toolchain/lib/libstdc++.la > $NEWROOT/toolchain/lib/libstdc++.la
 
-# some programs expect /etc/mtab
-ln -sv /proc/self/mounts $HOME/etc/mtab
-# this linker doesn't exist yet
-ln -sv /podhome/toolchain/lib/ld-linux.so.2 $HOME/lib
+# /etc/mtab
+ln -svf /proc/self/mounts $NEWROOT/etc/mtab
+# this linker doesn't exist if we haven't build core system yet
+ln -sv /podhome/toolchain/lib/ld-linux.so.2 $NEWROOT/lib
 
 
 
 echo "creating /etc/passwd"
 echo "root:x:0:0:root:/root:/bin/bash
-nobody:x:99:99:Unprivileged User:/dev/null:/bin/false"> $HOME/etc/passwd
+nobody:x:99:99:Unprivileged User:/dev/null:/bin/false"> $NEWROOT/etc/passwd
 
 echo "creating /etc/group"
 echo "root:x:0:
@@ -45,12 +63,12 @@ cdrom:x:15:
 adm:x:16:
 mail:x:34
 nogroup:x:99:
-users:x:999:"> $HOME/etc/group
+users:x:999:"> $NEWROOT/etc/group
 
 echo "creating /etc/fstab"
 echo "# default fstab
 /dev/sda1     /          ext4   defaults  1 1
-proc          /proc      proc   defaults  0 0" > $HOME/etc/fstab
+proc          /proc      proc   defaults  0 0" > $NEWROOT/etc/fstab
 
 
 
