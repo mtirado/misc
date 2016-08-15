@@ -93,7 +93,7 @@ decompress()
 
 
 #disable already installed packages using this if check
-#if [ 1 -eq 99 ]; then
+if [ 1 -eq 99 ]; then
 #TODO -- test tools, tcl expect, perl
 
 
@@ -176,6 +176,7 @@ echo "# Begin /etc/ld.so.conf
 
 
 
+
 ###############################################################
 # ADJUST TOOLCHAIN
 ###############################################################
@@ -183,11 +184,11 @@ echo "# Begin /etc/ld.so.conf
 echo "adjusting the toolchain"
 
 #we want to use the 2'nd linker that has overridden paths
-mv -v $TOOLCHAIN/bin/{ld,ld-old}
-mv -v $TOOLCHAIN/$(gcc -dumpmachine)/bin/{ld,ld-old}
-mv -v $TOOLCHAIN/bin/{ld-new,ld}
+mv -vf $TOOLCHAIN/bin/{ld,ld-old}
+mv -vf $TOOLCHAIN/$(gcc -dumpmachine)/bin/{ld,ld-old}
+mv -vf $TOOLCHAIN/bin/{ld-new,ld}
 
-ln -sv $TOOLCHAIN/bin/ld $TOOLCHAIN/$(gcc -dumpmachine)/bin/ld
+ln -sfv $TOOLCHAIN/bin/ld $TOOLCHAIN/$(gcc -dumpmachine)/bin/ld
 
 #change gcc specs
 gcc -dumpspecs | sed -e 's@/podhome/toolchain@@g'               \
@@ -413,7 +414,7 @@ decompress $GCC $SRCDIR
 cd $SRCDIR/$GCC
 
 # i have no idea what this one does...
-sed -i 's/if \((code.*))\)/if (\1 \&\& \!DEBUG_INSN_P (insn))/' gcc/sched-deps.c
+# sed -i 's/if \((code.*))\)/if (\1 \&\& \!DEBUG_INSN_P (insn))/' gcc/sched-deps.c
 
 mkdir $SRCDIR/$GCC-build
 cd $SRCDIR/$GCC-build
@@ -426,6 +427,9 @@ SED=sed                         \
     --disable-bootstrap         \
     --with-system-zlib          \
     --enable-languages=c,c++
+#    --disable-libvtv		\
+#    --disable-libsanitizer	\
+#    --disable-lto		\
 
 make $JOBS
 
@@ -452,8 +456,8 @@ ln -sv ../usr/bin/cpp /lib
 #cc symlink
 ln -sv gcc /usr/bin/cc
 
-#enable building with link time optimization(LTO), is this on by default now?
-#eh, LTO doesn't impress me much any way.
+#enable building with link time optimization(LTO)
+# this is enabled by default: gcc5
 #install -v -dm755 /usr/lib/bfd-plugins
 #ln -sfv ../../libexec/gcc/$(gcc -dumpmachine)/4.9.1/liblto_plugin.so /usr/lib/bfd-plugins/
 #read the elf and verify correctness.
@@ -528,7 +532,7 @@ make install
 cd $TOPDIR
 rm -rf $SRCDIR/$BASH
 
-
+fi
 ###############################################################
 # COREUTILS
 ###############################################################
@@ -541,7 +545,7 @@ cd $SRCDIR/$COREUTILS
 #patch -Np1 -i ../coreutils-8.23-i18n-1.patch &&
 #touch Makefile.in
 
-./configure
+./configure		\
     --prefix=/usr
 
 #must have shadow installed to su
@@ -686,9 +690,9 @@ rm -rf $SRCDIR/$FINDUTILS
 
 
 
-###############################################################
+######################################################################
 # XZ
-###############################################################
+######################################################################
 echo "extracting $XZ"
 decompress $XZ $SRCDIR
 cd $SRCDIR/$XZ
@@ -698,10 +702,12 @@ make $JOBS
 #make check
 make install
 
-#move stuff into /bin  (kmod needs lzma if you don't have pkg-config)
+#move to /bin
+# TODO  we probably want pkg-config to find this
 mv -v   /usr/bin/{lzma,unlzma,lzcat,xz,unxz,xzcat} /bin
-mv -v /usr/lib/liblzma.so.* /lib
+mv -v /usr/lib/liblzma.so* /lib
 ln -svf /lib/liblzma.so.5 /lib/liblzma.so
+ln -svf ../../lib/liblzma.so.5 /usr/lib/liblzma.so
 #ln -svf ../../lib/$(readlink /usr/lib/liblzma.so) /usr/lib/liblzma.so
 
 cd $TOPDIR
