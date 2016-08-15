@@ -31,8 +31,9 @@ ln -sv $NEWROOT/usr     $HOME/usr
 
 
 #create 64bit /lib64 /usr/lib64 /usr/local/lib64 here if you need
-
-echo "creating expected symlinks"
+echo ""
+echo "creating expected symlinks."
+echo "if they already exist, toolchain has been built"
 ln -sv /bin/bash $NEWROOT/bin/sh
 ln -sv /podhome/toolchain/bin/{bash,cat,echo,pwd} $NEWROOT/bin/
 #ln -sv $TOOLCHAIN/bin/perl /usr/bin
@@ -48,10 +49,11 @@ ln -svf /proc/self/mounts $NEWROOT/etc/mtab
 ln -sv /podhome/toolchain/lib/ld-linux.so.2 $NEWROOT/lib
 
 
-
+mkdir -vp $NEWROOT/home/user
 echo "creating /etc/passwd"
 echo "root:x:0:0:root:/root:/bin/bash
-nobody:x:99:99:Unprivileged User:/dev/null:/bin/false"> $NEWROOT/etc/passwd
+nobody:x:99:99:Unprivileged User:/dev/null:/bin/false
+user:x:1000:1000:Default User:/home/user:/bin/bash"> $NEWROOT/etc/passwd
 
 echo "creating /etc/group"
 echo "root:x:0:
@@ -63,14 +65,12 @@ cdrom:x:15:
 adm:x:16:
 mail:x:34
 nogroup:x:99:
-users:x:999:"> $NEWROOT/etc/group
+users:x:100:"> $NEWROOT/etc/group
 
 echo "creating /etc/fstab"
 echo "# default fstab
 /dev/sda1     /          ext4   defaults  1 1
 proc          /proc      proc   defaults  0 0" > $NEWROOT/etc/fstab
-
-
 
 
 
