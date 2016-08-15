@@ -63,7 +63,7 @@ TAR=tar-1.29
 #PERL_VERSION=5.24.0
 #PERL=perl-$PERL_VERSION
 #GETTEXT=gettext-0.19.7
-# i have some slow old hardware so not running these tests right now
+# tests
 #TCL=tcl-8.6.2
 #EXPECT=expect.5.45
 #DEJAGNU=dejagnu-1.5.1
@@ -192,6 +192,7 @@ cd $SRCDIR/$GCC-build
     --disable-libitm                                    	\
     --disable-libcilkrts                                	\
     --disable-libsanitizer                              	\
+    --disable-lto						\
     --enable-languages=c,c++
 
 make $JOBS
@@ -401,6 +402,7 @@ RANLIB="$TARGET-ranlib"                                 \
     --disable-multilib                                  \
     --disable-bootstrap                                 \
     --disable-libgomp                                   \
+    --disable-lto					\
     --enable-languages=c,c++
 # note: c++ is required to boot strap gcc >= 4.8
 
