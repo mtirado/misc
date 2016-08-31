@@ -5,7 +5,7 @@
 
 NEWROOT="$HOME/newroot"
 rm -rfv $HOME/{bin,boot,opt,etc,include,lib,libexec,sbin,var,usr}
-mkdir -vp $NEWROOT/{dev,proc,bin,boot,opt,etc,include,lib,libexec,sbin,var,usr}
+mkdir -vp $NEWROOT/{dev,sys,proc,bin,boot,opt,etc,include,lib,libexec,sbin,var,usr}
 chmod -v 0750 $NEWROOT/boot
 mkdir -vp $NEWROOT/var/log
 chmod -v 0750 $NEWROOT/var/log
@@ -48,8 +48,13 @@ ln -svf /proc/self/mounts $NEWROOT/etc/mtab
 # this linker doesn't exist if we haven't build core system yet
 ln -sv /podhome/toolchain/lib/ld-linux.so.2 $NEWROOT/lib
 
-
+#default users
+mkdir -vp $NEWROOT/root
+chmod -v 0700  $NEWROOT/root
 mkdir -vp $NEWROOT/home/user
+chmod -v 0700  $NEWROOT/home/user
+echo 'exec fluxbox' > $NEWROOT/home/user/.xinitrc
+
 echo "creating /etc/passwd"
 echo "root:x:0:0:root:/root:/bin/bash
 nobody:x:99:99:Unprivileged User:/dev/null:/bin/false
@@ -72,5 +77,8 @@ echo "# default fstab
 /dev/sda1     /          ext4   defaults  1 1
 proc          /proc      proc   defaults  0 0" > $NEWROOT/etc/fstab
 
-
+# this is qemu's default
+DNSSERV=10.0.2.3
+echo "creating default DNS server entry: $DNSSERV"
+echo "nameserver $DNSSERV" > $NEWROOT/etc/resolv.conf
 
