@@ -7,10 +7,10 @@ set -e
 set +h
 umask 022
 
-GLIBC_KERNELVERSION=4.1.0
+GLIBC_KERNELVERSION=3.10
 
 # compiler parallel jobs
-JOBS='-j2'
+JOBS='-j3'
 
 TOPDIR=/podhome
 PREFIX=/usr
@@ -23,14 +23,14 @@ export LC_ALL=C
 export PATH=/bin:/usr/bin:$TOOLCHAIN/bin
 
 # CORE SYSTEM
-BINUTILS=binutils-2.26
+BINUTILS=binutils-2.27
 GMP=gmp-6.1.0
-MPFR=mpfr-3.1.3
+MPFR=mpfr-3.1.4
 MPC=mpc-1.0.3
-GCC_VERSION=5.3.0
+GCC_VERSION=5.4.0
 GCC=gcc-$GCC_VERSION
-LINUX=linux-4.6
-GLIBC=glibc-2.23
+LINUX=linux-4.8.3
+GLIBC=glibc-2.24
 #TCL=tcl-8.6.2
 #EXPECT=expect.5.45
 #DEJAGNU=dejagnu-1.5.1
@@ -47,7 +47,7 @@ GAWK=gawk-4.1.3
 GREP=grep-2.25
 GZIP=gzip-1.8
 M4=m4-1.4.17
-MAKE=make-4.2
+MAKE=make-4.2.1
 PATCH=patch-2.7.5
 SED=sed-4.2.2
 TAR=tar-1.29
@@ -93,7 +93,7 @@ decompress()
 
 
 #disable already installed packages using this if check
-if [ 1 -eq 99 ]; then
+#if [ 1 -eq 99 ]; then
 #TODO -- test tools, tcl expect, perl
 
 
@@ -120,7 +120,7 @@ rm -rf $SRCDIR/$LINUX
 echo "extracting: $GLIBC"
 decompress $GLIBC $SRCDIR
 cd $SRCDIR/$GLIBC
-patch -Np1 -i $PKGDIR/glibc-2.23-upstream_fixes-1.patch
+#patch -Np1 -i $PKGDIR/glibc-2.23-upstream_fixes-1.patch
 mkdir $SRCDIR/$GLIBC-build
 cd $SRCDIR/$GLIBC-build
 
@@ -128,8 +128,14 @@ cd $SRCDIR/$GLIBC-build
 ../$GLIBC/configure                             \
     --prefix=$PREFIX                            \
     --disable-profile                           \
-    --enable-kernel=$GLIBC_KERNELVERSION
-#--enable-obsolete-rpc
+    --enable-kernel=$GLIBC_KERNELVERSION	\
+    --enable-stackguard-randomization		\
+    --enable-bind-now
+
+# --enable-lock-elision=yes/no -- some intel specific TSX hack for pthread mutex.
+# --enable-bind-now resolve PLT on DSO load, instead of on demand via trampoline
+# i think this removes a level of indirection, have not confirmed the inner workings.
+
 make $JOBS
 #this test is considered critical
 #make check > $TESTDIR/$GLIBC.make-test
@@ -237,7 +243,6 @@ rm -rf $SRCDIR/$GLIBC
 rm -rf $SRCDIR/$GLIBC-build
 
 
-
 echo "extracting fresh gcc sources"
 decompress $GCC $SRCDIR
 echo "building libstdc++-v3"
@@ -254,7 +259,7 @@ cd $SRCDIR/libstdc++-build
     --disable-libstdcxx-threads \
     --disable-libstdcxx-pch     \
     --with-gxx-include-dir=$PREFIX/include/c++/$GCC_VERSION
-##--disable-shared            \
+    #--disable-shared            \
 make $JOBS
 make install
 
@@ -320,7 +325,11 @@ cd $SRCDIR/$BINUTILS-build
 ../$BINUTILS/configure  \
     --prefix=/usr       \
     --enable-shared     \
-    --disable-werror
+    --disable-werror	\
+    --enable-libssp	\
+    --enable-gold
+
+#--enable-vtable-verify -- for vtv i suppose
 
 make $JOBS tooldir=/usr
 #make -k check > $TESTDIR/$BINUTILS.make-check
@@ -532,7 +541,6 @@ make install
 cd $TOPDIR
 rm -rf $SRCDIR/$BASH
 
-fi
 ###############################################################
 # COREUTILS
 ###############################################################

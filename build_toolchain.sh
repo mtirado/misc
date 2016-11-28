@@ -12,10 +12,10 @@ set +h
 set -e
 umask 022
 
-GLIBC_KERNELVERSION=4.1.0
+GLIBC_KERNELVERSION=3.10
 
 # parallel jobs compiler option
-JOBS='-j2'
+JOBS='-j3'
 
 #build paths
 TOPDIR=$(pwd)
@@ -32,14 +32,14 @@ mkdir -p $PREFIX
 mkdir -p $SRCDIR
 
 # source packages
-BINUTILS=binutils-2.26
+BINUTILS=binutils-2.27
 GMP=gmp-6.1.0
-MPFR=mpfr-3.1.3
+MPFR=mpfr-3.1.4
 MPC=mpc-1.0.3
-GCC_VERSION=5.3.0
+GCC_VERSION=5.4.0
 GCC=gcc-$GCC_VERSION
-LINUX=linux-4.6
-GLIBC=glibc-2.23
+LINUX=linux-4.8.3
+GLIBC=glibc-2.24
 BASH=bash-4.4-rc1
 COREUTILS=coreutils-8.25
 UTIL_LINUX=util-linux-2.28
@@ -53,7 +53,7 @@ BZIP2=bzip2-1.0.6
 GZIP=gzip-1.8
 PATCH=patch-2.7.5
 M4=m4-1.4.17
-MAKE=make-4.2
+MAKE=make-4.2.1
 ZLIB=zlib-1.2.8
 XZ=xz-5.2.2
 TAR=tar-1.29
@@ -105,7 +105,7 @@ echo "Build started at $BUILD_START"
 
 #disable stuff?
 #if [ 5 -eq 7 ]; then
-
+#fi
 echo "###############################################################"
 echo "BINUTILS - PASS 1"
 echo "###############################################################"
@@ -133,6 +133,7 @@ make install
 cd $TOPDIR
 rm -rf $SRCDIR/$BINUTILS
 rm -rf $SRCDIR/$BINUTILS-build
+
 
 
 echo "###############################################################"
@@ -227,7 +228,7 @@ mkdir $SRCDIR/$GLIBC-build
 
 cd $SRCDIR/$GLIBC
 
-patch -Np1 -i $PKGDIR/glibc-2.23-upstream_fixes-1.patch
+#patch -Np1 -i $PKGDIR/glibc-2.23-upstream_fixes-1.patch
 
 cd $SRCDIR/$GLIBC-build
 
@@ -240,8 +241,8 @@ cd $SRCDIR/$GLIBC-build
     --with-headers=$PREFIX/include              \
     --enable-kernel=$GLIBC_KERNELVERSION        \
     libc_cv_forced_unwind=yes                   \
-    libc_cv_ctors_header=yes                    \
     libc_cv_c_cleanup=yes
+#    libc_cv_ctors_header=yes                    \
 #these libc_cv flags are to disable tests for features
 #that will fail untill second pass binutils is completed
 
@@ -269,7 +270,7 @@ $TARGET-gcc  -v dummy.c
 echo "BUILT"
 readelf -l a.out
 echo "press the any key"
-#read -n 1 -s anykey
+read -n 1 -s anykey
 rm -rf a.out
 rm -rf dummy.c
 cd $TOPDIR
@@ -288,11 +289,11 @@ echo "###############################################################"
 mkdir $SRCDIR/libstdc++-build
 cd $SRCDIR/libstdc++-build
 
-CCP=$TARGET-ccp                 \
-CC=$TARGET-gcc			\
-AR=$TARGET-ar			\
-AS=$TARGET-as			\
-RANLIB=$TARGET-ranlib		\
+#CCP=$TARGET-ccp                 \
+#CC=$TARGET-gcc			\
+#AR=$TARGET-ar			\
+#AS=$TARGET-as			\
+#RANLIB=$TARGET-ranlib		\
 ../$GCC/libstdc++-v3/configure  \
     --host=$TARGET              \
     --prefix=$PREFIX            \
@@ -301,7 +302,7 @@ RANLIB=$TARGET-ranlib		\
     --disable-libstdcxx-threads \
     --disable-libstdcxx-pch     \
     --with-gxx-include-dir=$PREFIX/$TARGET/include/c++/$GCC_VERSION
-##--disable-shared            \
+#    --disable-shared            \
 make $JOBS
 make install
 
@@ -402,8 +403,8 @@ RANLIB="$TARGET-ranlib"                                 \
     --disable-multilib                                  \
     --disable-bootstrap                                 \
     --disable-libgomp                                   \
-    --disable-lto					\
     --enable-languages=c,c++
+#    --disable-lto					\
 # note: c++ is required to boot strap gcc >= 4.8
 
 make $JOBS
@@ -427,7 +428,7 @@ echo 'int main(int argc, char *argv[]){return 0;}' > dummy.c
 cc dummy.c
 readelf -l a.out
 echo "press the any key"
-#read -n 1 -s anykey
+read -n 1 -s anykey
 
 rm -rf $SRCDIR/$GCC
 rm -rf $SRCDIR/$GCC-build
@@ -505,7 +506,6 @@ make install
 cd $TOPDIR
 rm -rf $SRCDIR/$COREUTILS
 rm -rf $SRCDIR/$COREUTILS-build
-
 
 
 echo "###############################################################"
@@ -796,23 +796,23 @@ fi
 
 cd $TOPDIR
 echo "compressing toolchain (very slow if not stripped)"
-$PREFIX/bin/tar -cJf toolchain.xz toolchain
+$PREFIX/bin/tar -cJf toolchain.tar.xz toolchain
 
 echo "------------ generating checksums --------------"
 echo "md5..."
-$PREFIX/bin/md5sum toolchain.xz
+$PREFIX/bin/md5sum toolchain.tar.xz
 echo ""
 echo "sha1....."
-$PREFIX/bin/sha1sum toolchain.xz
+$PREFIX/bin/sha1sum toolchain.tar.xz
 echo ""
 echo "sha256........."
-$PREFIX/bin/sha256sum toolchain.xz
+$PREFIX/bin/sha256sum toolchain.tar.xz
 echo ""
 echo "sha384.........................."
-$PREFIX/bin/sha384sum toolchain.xz
+$PREFIX/bin/sha384sum toolchain.tar.xz
 echo ""
 echo "sha512..................................."
-$PREFIX/bin/sha512sum toolchain.xz
+$PREFIX/bin/sha512sum toolchain.tar.xz
 echo ""
 echo "------------------------------------------------"
 echo "write these down and store somewhere secure :) "

@@ -82,3 +82,17 @@ DNSSERV=10.0.2.3
 echo "creating default DNS server entry: $DNSSERV"
 echo "nameserver $DNSSERV" > $NEWROOT/etc/resolv.conf
 
+echo "creating nsswitch.conf:"
+echo "passwd:		compat
+group:		compat
+hosts:		files dns
+networks:	files
+services:	files
+protocols:	files
+rpc:		files
+ethers:		files
+netmasks:	files
+netgroup:	files
+bootparams:	files
+automount:	files
+aliases:	files"> $NEWROOT/etc/nsswitch.conf
