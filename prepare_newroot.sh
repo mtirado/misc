@@ -18,6 +18,7 @@ mkdir -vp $NEWROOT/usr/local/{bin,sbin,lib,include,share}
 chmod -v 0750 $NEWROOT/sbin
 chmod -v 0750 $NEWROOT/usr/sbin
 chmod -v 0750 $NEWROOT/usr/local/sbin
+chmod -v 0750 $NEWROOT/pkg-scripts
 # setup PODROOT_HOME directories
 ln -sv $NEWROOT/bin     $HOME/bin
 ln -sv $NEWROOT/boot    $HOME/boot
@@ -29,6 +30,7 @@ ln -sv $NEWROOT/sbin    $HOME/sbin
 ln -sv $NEWROOT/var     $HOME/var
 ln -sv $NEWROOT/usr     $HOME/usr
 
+ln -sv $NEWROOT/pkg-scripts     $HOME/pkg-scripts
 
 #create 64bit /lib64 /usr/lib64 /usr/local/lib64 here if you need
 echo ""

@@ -575,7 +575,7 @@ make install
 mv -vf /usr/bin/{cat,chgrp,chmod,chown,cp,date,dd,df,echo} /bin
 mv -vf /usr/bin/{false,ln,ls,mkdir,mknod,mv,pwd,rm} /bin
 mv -vf /usr/bin/{rmdir,stty,sync,true,uname} /bin
-mv -vf /usr/bin/chroot /usr/sbin
+mv -vf /usr/bin/chroot /sbin
 #mv -v /usr/share/man/man1/chroot.1 /usr/share/man/man8/chroot.8
 #sed -i s/\"1\"/\"8\"/1 /usr/share/man/man8/chroot.8
 
