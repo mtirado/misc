@@ -1,7 +1,7 @@
 #/bin/bash
-# Derived from LFS
+# (C) 2017 GPLv3+ (GNU gpl version 3 or later)
+# Derived from Linux From Scratch
 # For use with jettison PODROOT_HOME_OVERRIDE special build.
-# TODO unify package names, and decompress in sourced script
 # TODO add option to run tests
 set -e
 set +h
@@ -23,39 +23,40 @@ export LC_ALL=C
 export PATH=/bin:/usr/bin:$TOOLCHAIN/bin
 
 # CORE SYSTEM
-BINUTILS=binutils-2.27
-GMP=gmp-6.1.0
-MPFR=mpfr-3.1.4
+BINUTILS=binutils-2.28
+GMP=gmp-6.1.2
+MPFR=mpfr-3.1.5
 MPC=mpc-1.0.3
-GCC_VERSION=5.4.0
+GCC_VERSION=7.1.0
 GCC=gcc-$GCC_VERSION
-LINUX=linux-4.8.3
-GLIBC=glibc-2.24
+LINUX=linux-4.9.29
+GLIBC=glibc-2.25
+BASH=bash-4.4
+COREUTILS=coreutils-8.27
+DIFFUTILS=diffutils-3.6
+SED=sed-4.4
+GAWK=gawk-4.1.4
+GREP=grep-3.0
+M4=m4-1.4.18
+FINDUTILS=findutils-4.6.0
+GZIP=gzip-1.8
+PATCH=patch-2.7.5
+MAKE=make-4.2.1
+TAR=tar-1.29
+UTIL_LINUX=util-linux-2.29.2
+ZLIB=zlib-1.2.11
+XZ=xz-5.2.3
+BZIP2=bzip2-1.0.6
+FILE=file-5.30
+E2FSPROGS=e2fsprogs-1.43
+KMOD=kmod-24
+
 #TCL=tcl-8.6.2
 #EXPECT=expect.5.45
 #DEJAGNU=dejagnu-1.5.1
 #CHECK=check-0.9.14
 #PERL_VERSION=5.24.0
 #PERL=perl-$PERL_VERSION
-BASH=bash-4.4-rc1
-BZIP2=bzip2-1.0.6
-COREUTILS=coreutils-8.25
-DIFFUTILS=diffutils-3.3
-FILE=file-5.27
-FINDUTILS=findutils-4.6.0
-GAWK=gawk-4.1.3
-GREP=grep-2.25
-GZIP=gzip-1.8
-M4=m4-1.4.17
-MAKE=make-4.2.1
-PATCH=patch-2.7.5
-SED=sed-4.2.2
-TAR=tar-1.29
-UTIL_LINUX=util-linux-2.28
-XZ=xz-5.2.2
-ZLIB=zlib-1.2.8
-E2FSPROGS=e2fsprogs-1.43
-KMOD=kmod-22
 
 mkdir -pv $SRCDIR
 
@@ -326,9 +327,9 @@ cd $SRCDIR/$BINUTILS-build
     --prefix=/usr       \
     --enable-shared     \
     --disable-werror	\
-    --enable-libssp	\
-    --enable-gold
+    --enable-libssp
 
+#    --enable-gold
 #--enable-vtable-verify -- for vtv i suppose
 
 make $JOBS tooldir=/usr
@@ -598,11 +599,6 @@ decompress $BZIP2 $SRCDIR
 cd $SRCDIR/$BZIP2
 
 
-#TODO bzip docs
-#install documentation?
-#patch -Np1 -i ../bzip2-1.0.6-install_docs-1.patch
-#sed -i "s@(PREFIX)/man@(PREFIX)/share/man@g" Makefile
-
 #ensures sumbolic links are relative
 sed -i 's@\(ln -s -f \)$(PREFIX)/bin/@\1@' Makefile
 
@@ -711,7 +707,6 @@ make $JOBS
 make install
 
 #move to /bin
-# TODO  we probably want pkg-config to find this
 mv -v   /usr/bin/{lzma,unlzma,lzcat,xz,unxz,xzcat} /bin
 mv -v /usr/lib/liblzma.so* /lib
 ln -svf /lib/liblzma.so.5 /lib/liblzma.so
@@ -720,9 +715,6 @@ ln -svf ../../lib/liblzma.so.5 /usr/lib/liblzma.so
 
 cd $TOPDIR
 rm -rf $SRCDIR/$XZ
-
-
-
 
 
 ###############################################################
@@ -936,5 +928,7 @@ rm -rf $SRCDIR/$E2FSPROGS
 cp -rv $PKGDIR/termcap /etc/termcap
 
 
-echo "Run build_newroot.sh to finalize core system"
+echo ---------------------------------------------
+echo "newroot has been built"
+echo ---------------------------------------------
 

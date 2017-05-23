@@ -1,64 +1,89 @@
 #!/bin/bash
-# GNU/Linux Toolchain build script.
+# (C) 2017 GPLv3+ (GNU gpl version 3 or later)
 # Derived from Linux From Scratch
-# For use with jettison PODROOT_HOME_OVERRIDE special build
-#
-# only tested using i686! some x86_64 steps have been commented out,
-# but you may need to check LFS guide to make sure they're correct.
-# please let me know what needs to be changed if you manage to build
-# an x86_64 toolchain.
+# For use with jettison PODROOT_HOME_OVERRIDE compile-time option
+
+# the only thing we need is system-pkgs in home directory shared with pod
 
 set +h
 set -e
 umask 022
 
+# XXX build environment may need to have
+# /podhome/newsystem/podhome/toolchain symlinked to /podhome/toolchain
+TOOLCHAIN_ARCH="x86"
+case "$TOOLCHAIN_ARCH" in
+	x86)
+		export TARGET=i686-xbuild-linux-gnu
+	;;
+	x86_64)
+		export TARGET=x86_64-xbuild-linux-gnu
+		echo "todo"
+		exit -1
+		# multilib?
+		#mkdir -vp /podhome/toolchain/lib && ln -sv lib /podhome/toolchain/lib64
+		#mkdir -vp /podhome/toolchain/lib && ln -sv lib /tools/lib64
+	;;
+	x32)
+		# i'm not sure on that gnux32 at the end
+		export TARGET=x86_64-xbuild-linux-gnux32
+		echo "todo"
+		exit -1
+		#mkdir -vp /podhome/toolchain/lib && ln -sv lib /tools/lib64
+	;;
+	armv7)
+		export TARGET=arm-xbuild-linux-gnueabihf
+		echo "todo"
+		# also check for hardfloat option
+		exit -1
+	;;
+	*)
+		exit -1
+	;;
+esac
+
 GLIBC_KERNELVERSION=3.10
 
-# parallel jobs compiler option
-JOBS='-j3'
+JOBS='-j2'
 
-#build paths
-TOPDIR=$(pwd)
-PKGDIR=$(pwd)/system-pkgs
-SRCDIR=$(pwd)/toolchain-src
-PREFIX=/podhome/toolchain
-FAKEROOT=/podhome/newsystem
+TOPDIR="$(pwd)"
+PKGDIR="$(pwd)/system-pkgs"
+SRCDIR="$(pwd)/toolchain-src"
+PREFIX="/podhome/toolchain"
+FAKEROOT="/podhome/newsystem"
 
-export TARGET=$(uname -m)-xbuild-linux-gnu
 export PATH="$PREFIX/bin:$PREFIX/usr/bin:/bin:/usr/bin"
 export LC_ALL=C
 
 mkdir -p $PREFIX
 mkdir -p $SRCDIR
 
-# source packages
-BINUTILS=binutils-2.27
-GMP=gmp-6.1.0
-MPFR=mpfr-3.1.4
+BINUTILS=binutils-2.28
+GMP=gmp-6.1.2
+MPFR=mpfr-3.1.5
 MPC=mpc-1.0.3
-GCC_VERSION=5.4.0
+GCC_VERSION=7.1.0
 GCC=gcc-$GCC_VERSION
-LINUX=linux-4.8.3
-GLIBC=glibc-2.24
-BASH=bash-4.4-rc1
-COREUTILS=coreutils-8.25
-UTIL_LINUX=util-linux-2.28
-DIFFUTILS=diffutils-3.3
-FILE=file-5.27
+LINUX=linux-4.9.29
+GLIBC=glibc-2.25
+BASH=bash-4.4
+COREUTILS=coreutils-8.27
+DIFFUTILS=diffutils-3.6
+SED=sed-4.4
+GAWK=gawk-4.1.4
+GREP=grep-3.0
+M4=m4-1.4.18
 FINDUTILS=findutils-4.6.0
-SED=sed-4.2.2
-GAWK=gawk-4.1.3
-GREP=grep-2.25
-BZIP2=bzip2-1.0.6
 GZIP=gzip-1.8
 PATCH=patch-2.7.5
-M4=m4-1.4.17
 MAKE=make-4.2.1
-ZLIB=zlib-1.2.8
-XZ=xz-5.2.2
 TAR=tar-1.29
+UTIL_LINUX=util-linux-2.29.2
+ZLIB=zlib-1.2.11
+XZ=xz-5.2.3
+BZIP2=bzip2-1.0.6
+FILE=file-5.30
 
-# for documentation, localization, aka bloat
 #TEXINFO=texinfo-6.1
 #PERL_VERSION=5.24.0
 #PERL=perl-$PERL_VERSION
@@ -106,6 +131,7 @@ echo "Build started at $BUILD_START"
 #disable stuff?
 #if [ 5 -eq 7 ]; then
 #fi
+#BUILD_START=$(date)
 echo "###############################################################"
 echo "BINUTILS - PASS 1"
 echo "###############################################################"
@@ -121,18 +147,70 @@ cd $SRCDIR/$BINUTILS-build
     --disable-nls               \
     --disable-werror
 make $JOBS
-
-#i'm using i686, don't need this
-#if x86_64
-#case $(uname -m) in
-#    x86_64) mkdir -v /podhome/toolchain/lib && ln -sv lib /tools/lib64 ;;
-#esac
-
 make install
 
 cd $TOPDIR
 rm -rf $SRCDIR/$BINUTILS
 rm -rf $SRCDIR/$BINUTILS-build
+
+
+
+
+
+echo "###############################################################"
+echo "LINUX API HEADER"
+echo "###############################################################"
+echo "installing linux headers"
+decompress $LINUX $SRCDIR
+cd $SRCDIR/$LINUX
+make mrproper
+make INSTALL_HDR_PATH=dest headers_install
+mkdir -pv $PREFIX/include
+cp -rfv dest/include/* $PREFIX/include
+cd $TOPDIR
+rm -rf $SRCDIR/$LINUX
+
+
+
+# FIXME this is sloppy, all it really needs i think are the crt0.o, etc files
+echo "###############################################################"
+echo "GLIBC"
+echo "###############################################################"
+decompress $GLIBC $SRCDIR
+mkdir $SRCDIR/$GLIBC-build
+
+cd $SRCDIR/$GLIBC
+
+#patch -Np1 -i $PKGDIR/glibc-2.23-upstream_fixes-1.patch
+
+cd $SRCDIR/$GLIBC-build
+
+
+../$GLIBC/configure                             \
+    --prefix=$PREFIX                            \
+    --host=$TARGET                              \
+    --build=$("../$GLIBC/scripts/config.guess") \
+    --disable-profile                           \
+    --with-headers=$PREFIX/include              \
+    --enable-kernel=$GLIBC_KERNELVERSION        \
+    libc_cv_forced_unwind=yes                   \
+    libc_cv_c_cleanup=yes
+#    libc_cv_ctors_header=yes                    \
+#these libc_cv flags are to disable tests for features
+#that will fail untill second pass binutils is completed
+
+
+make $JOBS
+make install
+
+mkdir -p $FAKEROOT/$PREFIX
+rm -rf $FAKEROOT/$PREFIX
+ln -sf $PREFIX $FAKEROOT/$PREFIX
+
+cd $TOPDIR
+rm -rf $SRCDIR/$GLIBC
+rm -rf $SRCDIR/$GLIBC-build
+
 
 
 
@@ -176,9 +254,9 @@ cd $SRCDIR/$GCC-build
     --with-glibc-version=2.11					\
     --with-sysroot=$FAKEROOT                                    \
     --with-newlib                                       	\
-    --without-headers                                   	\
     --with-native-system-header-dir=$PREFIX/include		\
     --with-local-prefix=$PREFIX                         	\
+    --without-headers                                   	\
     --disable-nls                                       	\
     --disable-shared                                    	\
     --disable-multilib                                  	\
@@ -190,12 +268,12 @@ cd $SRCDIR/$GCC-build
     --disable-libssp						\
     --disable-libvtv                                    	\
     --disable-libstdcxx                                 	\
-    --disable-libitm                                    	\
-    --disable-libcilkrts                                	\
-    --disable-libsanitizer                              	\
     --disable-lto						\
     --enable-languages=c,c++
 
+   # --disable-libcilkrts                                	\
+   # --disable-libsanitizer                              	\
+   #--disable-libitm                                    	\
 make $JOBS
 make install
 
@@ -205,80 +283,8 @@ rm -rf $SRCDIR/$GCC
 rm -rf $SRCDIR/$GCC-build
 
 
-echo "###############################################################"
-echo "LINUX API HEADER"
-echo "###############################################################"
-echo "installing linux headers"
-decompress $LINUX $SRCDIR
-cd $SRCDIR/$LINUX
-make mrproper
-make INSTALL_HDR_PATH=dest headers_install
-cp -rfv dest/include/* $PREFIX/include
-cd $TOPDIR
-rm -rf $SRCDIR/$LINUX
 
 
-
-
-echo "###############################################################"
-echo "GLIBC"
-echo "###############################################################"
-decompress $GLIBC $SRCDIR
-mkdir $SRCDIR/$GLIBC-build
-
-cd $SRCDIR/$GLIBC
-
-#patch -Np1 -i $PKGDIR/glibc-2.23-upstream_fixes-1.patch
-
-cd $SRCDIR/$GLIBC-build
-
-
-../$GLIBC/configure                             \
-    --prefix=$PREFIX                            \
-    --host=$TARGET                              \
-    --build=$("../$GLIBC/scripts/config.guess") \
-    --disable-profile                           \
-    --with-headers=$PREFIX/include              \
-    --enable-kernel=$GLIBC_KERNELVERSION        \
-    libc_cv_forced_unwind=yes                   \
-    libc_cv_c_cleanup=yes
-#    libc_cv_ctors_header=yes                    \
-#these libc_cv flags are to disable tests for features
-#that will fail untill second pass binutils is completed
-
-
-make $JOBS
-make install
-
-
-# hacks on top of hacks!
-mkdir -p $FAKEROOT/$PREFIX
-rm -rf $FAKEROOT/$PREFIX
-ln -sf $PREFIX $FAKEROOT/$PREFIX
-
-
-cd $SRCDIR/$GLIBC-build
-
-echo -e "\n\n\n**************************************************\n\
-    running readelf binary test\nconfirm that this is the toolchain dynamic linker\n\
-    eg /podhome/toolchain/lib/ld-linux.so.2\n\
-    **************************************************"
-echo 'int main(int argc, char *argv[]){return 0;}' > dummy.c
-echo "CALLING GCC"
-echo "PATH($PATH)"
-$TARGET-gcc  -v dummy.c
-echo "BUILT"
-readelf -l a.out
-echo "press the any key"
-read -n 1 -s anykey
-rm -rf a.out
-rm -rf dummy.c
-cd $TOPDIR
-
-
-
-rm -rf $SRCDIR/$GLIBC
-rm -rf $SRCDIR/$GLIBC-build
 
 
 decompress $GCC $SRCDIR
@@ -346,6 +352,67 @@ cd $TOPDIR
 
 rm -rf $SRCDIR/$BINUTILS
 rm -rf $SRCDIR/$BINUTILS-build
+
+echo "###############################################################"
+echo "GLIBC"
+echo "###############################################################"
+decompress $GLIBC $SRCDIR
+mkdir $SRCDIR/$GLIBC-build
+
+cd $SRCDIR/$GLIBC
+
+#patch -Np1 -i $PKGDIR/glibc-2.23-upstream_fixes-1.patch
+
+cd $SRCDIR/$GLIBC-build
+
+
+../$GLIBC/configure                             \
+    --prefix=$PREFIX                            \
+    --host=$TARGET                              \
+    --build=$("../$GLIBC/scripts/config.guess") \
+    --disable-profile                           \
+    --with-headers=$PREFIX/include              \
+    --enable-kernel=$GLIBC_KERNELVERSION        \
+    libc_cv_forced_unwind=yes                   \
+    libc_cv_c_cleanup=yes
+#    libc_cv_ctors_header=yes                    \
+#these libc_cv flags are to disable tests for features
+#that will fail untill second pass binutils is completed
+
+
+make $JOBS
+make install
+
+
+# hacks on top of hacks!
+mkdir -p $FAKEROOT/$PREFIX
+rm -rf $FAKEROOT/$PREFIX
+ln -sf $PREFIX $FAKEROOT/$PREFIX
+
+
+cd $SRCDIR/$GLIBC-build
+
+echo -e "\n\n\n**************************************************\n\
+    running readelf binary test\nconfirm that this is the toolchain dynamic linker\n\
+    eg /podhome/toolchain/lib/ld-linux.so.2\n\
+    **************************************************"
+echo 'int main(int argc, char *argv[]){return 0;}' > dummy.c
+echo "CALLING GCC"
+echo "PATH($PATH)"
+$TARGET-gcc  -v dummy.c
+echo "BUILT"
+readelf -l a.out
+echo "press the any key"
+#read -n 1 -s anykey
+rm -rf a.out
+rm -rf dummy.c
+cd $TOPDIR
+
+
+
+rm -rf $SRCDIR/$GLIBC
+rm -rf $SRCDIR/$GLIBC-build
+
 
 
 echo "###############################################################"
@@ -428,7 +495,7 @@ echo 'int main(int argc, char *argv[]){return 0;}' > dummy.c
 cc dummy.c
 readelf -l a.out
 echo "press the any key"
-read -n 1 -s anykey
+#read -n 1 -s anykey
 
 rm -rf $SRCDIR/$GCC
 rm -rf $SRCDIR/$GCC-build
@@ -764,7 +831,28 @@ cd $TOPDIR
 rm -rf $SRCDIR/$SED
 rm -rf $SRCDIR/$SED-build
 
+echo "###############################################################"
+echo "writing PODROOT_HOME_OVERRIDE phase2.pod config"
+echo "###############################################################"
+echo "
+newnet none
+home_exec
 
+home r   /system-pkgs
+home rwx /toolchain
+
+# links home directory as a pod root directory
+home rwxR /bin
+home rwxR /etc
+home rwxR /include
+home rwxR /lib
+home rwxR /libexec
+home rwxR /man
+home rwxR /sbin
+home rwxR /share
+home rwxR /var
+home rwxR /usr
+" > "$PREFIX/phase2.pod"
 set +e
 echo "removing cross compiler"
 find . -iname "*$TARGET*" -exec rm -rfv {} \;
@@ -798,25 +886,28 @@ cd $TOPDIR
 echo "compressing toolchain (very slow if not stripped)"
 $PREFIX/bin/tar -cJf toolchain.tar.xz toolchain
 
-echo "------------ generating checksums --------------"
-echo "md5..."
+echo "-------------------------------------------------------"
+echo "---------------- checksum generation ------------------"
+echo "-------------------------------------------------------"
+echo ""
+echo "                          MD5"
 $PREFIX/bin/md5sum toolchain.tar.xz
 echo ""
-echo "sha1....."
+echo "                          SHA1"
 $PREFIX/bin/sha1sum toolchain.tar.xz
 echo ""
-echo "sha256........."
+echo "                         SHA256"
 $PREFIX/bin/sha256sum toolchain.tar.xz
 echo ""
-echo "sha384.........................."
+echo "                         SHA384"
 $PREFIX/bin/sha384sum toolchain.tar.xz
 echo ""
-echo "sha512..................................."
+echo "                         SHA512"
 $PREFIX/bin/sha512sum toolchain.tar.xz
 echo ""
-echo "------------------------------------------------"
-echo "write these down and store somewhere secure :) "
-echo "------------------------------------------------"
+echo "-------------------------------------------------------"
+echo "  write these down and store somewhere non-digital :S "
+echo "-------------------------------------------------------"
 
 BUILD_END=$(date)
 echo ""
@@ -825,4 +916,13 @@ echo "Build was started at $BUILD_START"
 echo "Completed at $BUILD_END"
 echo ""
 echo "Toolchain is ready for use"
+
+echo "set up home directory for pod root override"
+echo "extract toolchain to home directory"
+echo "run prepare_newroot.sh"
+echo "copy toolchain/phase2.pod to home"
+echo "and override dirs whould be rwx as well."
+echo "run specially compiled jettison with PODROOT_HOME_OVERRIDE"
+
+echo "export PATH=/bin:/usr/bin:/podhome/toolchain/bin"
 
