@@ -13,7 +13,7 @@ GLIBC_KERNELVERSION=3.10
 JOBS='-j3'
 
 TOPDIR=/podhome
-PREFIX=/usr
+INSTPREFIX=/usr
 TOOLCHAIN=/podhome/toolchain
 SRCDIR=/podhome/system-src
 PKGDIR=/podhome/system-pkgs
@@ -109,7 +109,9 @@ make mrproper
 echo "installing linux headers"
 make INSTALL_HDR_PATH=dest headers_install
 find dest/include \( -name .install -o -name ..install.cmd \) -delete
-cp -rv dest/include/* $PREFIX/include
+cp -rv dest/include/* $INSTPREFIX/include
+cd $INSTPREFIX/include
+find -name '*.install*' -exec rm -v ./{} \;
 cd $TOPDIR
 rm -rf $SRCDIR/$LINUX
 
@@ -121,16 +123,16 @@ rm -rf $SRCDIR/$LINUX
 echo "extracting: $GLIBC"
 decompress $GLIBC $SRCDIR
 cd $SRCDIR/$GLIBC
-#patch -Np1 -i $PKGDIR/glibc-2.23-upstream_fixes-1.patch
 mkdir $SRCDIR/$GLIBC-build
 cd $SRCDIR/$GLIBC-build
 
 
 ../$GLIBC/configure                             \
-    --prefix=$PREFIX                            \
+    --prefix=$INSTPREFIX                        \
     --disable-profile                           \
     --enable-kernel=$GLIBC_KERNELVERSION	\
     --enable-stackguard-randomization		\
+    --enable-stack-protector=strong		\
     --enable-bind-now
 
 # --enable-lock-elision=yes/no -- some intel specific TSX hack for pthread mutex.
@@ -159,27 +161,22 @@ echo "# Begin /etc/ld.so.conf
 
 
 
-##########################################
-#  MISSING THESE  XXX XXX XXX XXX
-##########################################
-#echo "creatin nsswitch.conf"
-##create /etc/nsswitch.conf
+#echo "creating nsswitch.conf"
 #echo "# Begin /etc/nsswitch.conf
 #passwd: files
-#group: files
+#group:  files
 #shadow: files
-
-#hosts: files dns
+#
+#hosts:    files dns
 #networks: files
-
+#
 #protocols: files
-#services: files
-#ethers: files
-#rpc: files
-
+#services:  files
+#ethers:    files
+#rpc:       files
+#
 ## End /etc/nsswitch.conf
 #"> /etc/nsswitch.conf
-
 
 
 
@@ -244,32 +241,6 @@ rm -rf $SRCDIR/$GLIBC
 rm -rf $SRCDIR/$GLIBC-build
 
 
-echo "extracting fresh gcc sources"
-decompress $GCC $SRCDIR
-echo "building libstdc++-v3"
-echo "###############################################################"
-echo "LIBSTDC++"
-echo "###############################################################"
-mkdir $SRCDIR/libstdc++-build
-cd $SRCDIR/libstdc++-build
-
-../$GCC/libstdc++-v3/configure  \
-    --prefix=/usr               \
-    --disable-multilib          \
-    --disable-nls               \
-    --disable-libstdcxx-threads \
-    --disable-libstdcxx-pch     \
-    --with-gxx-include-dir=$PREFIX/include/c++/$GCC_VERSION
-    #--disable-shared            \
-make $JOBS
-make install
-
-cd $TOPDIR
-rm -rf $SRCDIR/$GCC
-rm -rf $SRCDIR/libstdc++-build
-
-
-
 ###############################################################
 # ZLIB
 ###############################################################
@@ -317,8 +288,8 @@ cd $SRCDIR/$BINUTILS
 #expect -c "spawn ls"
 
 #suppress outdated standards.info file
-rm -fv etc/standards.info
-sed -i.bak '/^INFO/s/standards.info //' etc/Makefile.in
+#rm -fv etc/standards.info
+#sed -i.bak '/^INFO/s/standards.info //' etc/Makefile.in
 
 mkdir $SRCDIR/$BINUTILS-build
 cd $SRCDIR/$BINUTILS-build
@@ -327,7 +298,8 @@ cd $SRCDIR/$BINUTILS-build
     --prefix=/usr       \
     --enable-shared     \
     --disable-werror	\
-    --enable-libssp
+    --enable-libssp	\
+    --with-system-zlib
 
 #    --enable-gold
 #--enable-vtable-verify -- for vtv i suppose
@@ -461,13 +433,11 @@ cd $SRCDIR/$GCC-build
 
 make install
 
-#some packages want c processor
-ln -sv ../usr/bin/cpp /lib
+#ln -sv ../usr/bin/cpp /lib
 #cc symlink
 ln -sv gcc /usr/bin/cc
 
 #enable building with link time optimization(LTO)
-# this is enabled by default: gcc5
 #install -v -dm755 /usr/lib/bfd-plugins
 #ln -sfv ../../libexec/gcc/$(gcc -dumpmachine)/4.9.1/liblto_plugin.so /usr/lib/bfd-plugins/
 #read the elf and verify correctness.
@@ -517,6 +487,14 @@ rm -rf $SRCDIR/$GCC
 rm -rf $SRCDIR/$GCC-build
 
 
+##############################################################
+# adjust gcc specs
+# e.g: https://wiki.gentoo.org/wiki/Hardened/Toolchain
+##############################################################
+
+# enable relro linker flag by default
+gcc -dumpspecs | sed 's#%{pie:-pie}#%{pie:-pie} %{!norelro: -z relro} %{relro: }#' > \
+			`dirname $(gcc --print-libgcc-file-name)`/specs
 
 ###############################################################
 # BASH
@@ -605,7 +583,7 @@ sed -i 's@\(ln -s -f \)$(PREFIX)/bin/@\1@' Makefile
 make $JOBS -f Makefile-libbz2_so
 make clean
 make $JOBS
-make PREFIX=/usr install
+make INSTPREFIX=/usr install
 cp -vf bzip2-shared /bin/bzip2
 cp -avf libbz2.so* /lib
 ln -svf ../../lib/libbz2.so.1.0 /usr/lib/libbz2.so
@@ -910,7 +888,7 @@ mkdir -v build
 cd build
 PKG_CONFIG=/bin/true				\
 CFLAGS="-I/usr/include -I/usr/local/include"    \
-../configure --prefix=$PREFIX       \
+../configure --prefix=$INSTPREFIX       \
              --bindir=/bin          \
              --sbindir=/sbin        \
              --with-root-prefix=""

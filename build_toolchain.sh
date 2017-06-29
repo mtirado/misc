@@ -3,14 +3,17 @@
 # Derived from Linux From Scratch
 # For use with jettison PODROOT_HOME_OVERRIDE compile-time option
 
-# the only thing we need is system-pkgs in home directory shared with pod
-
+# the only thing needed is system-pkgs in home directory shared with pod
+# this will create a self contained toolchain dir, to be used until
+# pod root is populated with cross compiled binaries.
 set +h
 set -e
 umask 022
 
-# XXX build environment may need to have
-# /podhome/newsystem/podhome/toolchain symlinked to /podhome/toolchain
+# XXX note: build environment symlinks glibc linker in fakeroot, and
+# later on in phase2 toolchain linker gets modified, if rebuilding
+# make sure everything is in a clean default state!
+
 TOOLCHAIN_ARCH="x86"
 case "$TOOLCHAIN_ARCH" in
 	x86)
@@ -44,18 +47,18 @@ esac
 
 GLIBC_KERNELVERSION=3.10
 
-JOBS='-j2'
+JOBS="-j3"
 
 TOPDIR="$(pwd)"
 PKGDIR="$(pwd)/system-pkgs"
 SRCDIR="$(pwd)/toolchain-src"
-PREFIX="/podhome/toolchain"
+INSTPREFIX="/podhome/toolchain"
 FAKEROOT="/podhome/newsystem"
 
-export PATH="$PREFIX/bin:$PREFIX/usr/bin:/bin:/usr/bin"
+export PATH="$INSTPREFIX/bin:$INSTPREFIX/usr/bin:/bin:/usr/bin"
 export LC_ALL=C
 
-mkdir -p $PREFIX
+mkdir -p $INSTPREFIX
 mkdir -p $SRCDIR
 
 BINUTILS=binutils-2.28
@@ -139,12 +142,12 @@ decompress $BINUTILS $SRCDIR
 mkdir $SRCDIR/$BINUTILS-build
 cd $SRCDIR/$BINUTILS-build
 
-../$BINUTILS/configure          \
-    --target=$TARGET            \
-    --prefix=$PREFIX            \
-    --with-lib-path=$PREFIX/lib \
-    --with-sysroot=$FAKEROOT    \
-    --disable-nls               \
+../$BINUTILS/configure              \
+    --target=$TARGET                \
+    --prefix=$INSTPREFIX            \
+    --with-lib-path=$INSTPREFIX/lib \
+    --with-sysroot=$FAKEROOT        \
+    --disable-nls                   \
     --disable-werror
 make $JOBS
 make install
@@ -165,33 +168,26 @@ decompress $LINUX $SRCDIR
 cd $SRCDIR/$LINUX
 make mrproper
 make INSTALL_HDR_PATH=dest headers_install
-mkdir -pv $PREFIX/include
-cp -rfv dest/include/* $PREFIX/include
+mkdir -pv $INSTPREFIX/include
+cp -rfv dest/include/* $INSTPREFIX/include
 cd $TOPDIR
 rm -rf $SRCDIR/$LINUX
 
 
-
-# FIXME this is sloppy, all it really needs i think are the crt0.o, etc files
+# FIXME this is sloppy, all it really needs i think are the crt0.o, startfiles
 echo "###############################################################"
 echo "GLIBC"
 echo "###############################################################"
 decompress $GLIBC $SRCDIR
+
 mkdir $SRCDIR/$GLIBC-build
-
-cd $SRCDIR/$GLIBC
-
-#patch -Np1 -i $PKGDIR/glibc-2.23-upstream_fixes-1.patch
-
 cd $SRCDIR/$GLIBC-build
-
-
 ../$GLIBC/configure                             \
-    --prefix=$PREFIX                            \
+    --prefix=$INSTPREFIX                        \
     --host=$TARGET                              \
     --build=$("../$GLIBC/scripts/config.guess") \
     --disable-profile                           \
-    --with-headers=$PREFIX/include              \
+    --with-headers=$INSTPREFIX/include          \
     --enable-kernel=$GLIBC_KERNELVERSION        \
     libc_cv_forced_unwind=yes                   \
     libc_cv_c_cleanup=yes
@@ -199,19 +195,15 @@ cd $SRCDIR/$GLIBC-build
 #these libc_cv flags are to disable tests for features
 #that will fail untill second pass binutils is completed
 
-
 make $JOBS
 make install
-
-mkdir -p $FAKEROOT/$PREFIX
-rm -rf $FAKEROOT/$PREFIX
-ln -sf $PREFIX $FAKEROOT/$PREFIX
+mkdir -p $FAKEROOT/$INSTPREFIX
+rm -rf $FAKEROOT/$INSTPREFIX
+ln -sf $INSTPREFIX $FAKEROOT/$INSTPREFIX
 
 cd $TOPDIR
 rm -rf $SRCDIR/$GLIBC
 rm -rf $SRCDIR/$GLIBC-build
-
-
 
 
 echo "###############################################################"
@@ -250,12 +242,12 @@ cd $SRCDIR/$GCC-build
 
 ../$GCC/configure                                               \
     --target=$TARGET                                            \
-    --prefix=$PREFIX                                    	\
+    --prefix=$INSTPREFIX                                    	\
     --with-glibc-version=2.11					\
     --with-sysroot=$FAKEROOT                                    \
     --with-newlib                                       	\
-    --with-native-system-header-dir=$PREFIX/include		\
-    --with-local-prefix=$PREFIX                         	\
+    --with-native-system-header-dir=$INSTPREFIX/include		\
+    --with-local-prefix=$INSTPREFIX                         	\
     --without-headers                                   	\
     --disable-nls                                       	\
     --disable-shared                                    	\
@@ -278,13 +270,8 @@ make $JOBS
 make install
 
 cd $TOPDIR
-
 rm -rf $SRCDIR/$GCC
 rm -rf $SRCDIR/$GCC-build
-
-
-
-
 
 
 decompress $GCC $SRCDIR
@@ -295,19 +282,19 @@ echo "###############################################################"
 mkdir $SRCDIR/libstdc++-build
 cd $SRCDIR/libstdc++-build
 
-#CCP=$TARGET-ccp                 \
+#CCP=$TARGET-ccp                \
 #CC=$TARGET-gcc			\
 #AR=$TARGET-ar			\
 #AS=$TARGET-as			\
 #RANLIB=$TARGET-ranlib		\
 ../$GCC/libstdc++-v3/configure  \
     --host=$TARGET              \
-    --prefix=$PREFIX            \
+    --prefix=$INSTPREFIX        \
     --disable-multilib          \
     --disable-nls               \
     --disable-libstdcxx-threads \
     --disable-libstdcxx-pch     \
-    --with-gxx-include-dir=$PREFIX/$TARGET/include/c++/$GCC_VERSION
+    --with-gxx-include-dir=$INSTPREFIX/$TARGET/include/c++/$GCC_VERSION
 #    --disable-shared            \
 make $JOBS
 make install
@@ -330,11 +317,11 @@ CC=$TARGET-gcc			\
 AR=$TARGET-ar			\
 RANLIB=$TARGET-ranlib		\
 ../$BINUTILS/configure		\
-    --prefix=$PREFIX            \
+    --prefix=$INSTPREFIX        \
     --with-sysroot		\
-    --with-lib-path=$PREFIX/lib \
     --disable-nls               \
-    --disable-werror
+    --disable-werror            \
+    --with-lib-path=$INSTPREFIX/lib
 
 make $JOBS
 #make $JOBS -k check
@@ -346,7 +333,7 @@ make install
 # prepare a new linker for re-adjusting phase later on.
 make -C ld clean
 make -C ld LIB_PATH=/lib:/usr/lib
-cp -vf ld/ld-new $PREFIX/bin
+cp -vf ld/ld-new $INSTPREFIX/bin
 
 cd $TOPDIR
 
@@ -367,11 +354,11 @@ cd $SRCDIR/$GLIBC-build
 
 
 ../$GLIBC/configure                             \
-    --prefix=$PREFIX                            \
+    --prefix=$INSTPREFIX                            \
     --host=$TARGET                              \
     --build=$("../$GLIBC/scripts/config.guess") \
     --disable-profile                           \
-    --with-headers=$PREFIX/include              \
+    --with-headers=$INSTPREFIX/include              \
     --enable-kernel=$GLIBC_KERNELVERSION        \
     libc_cv_forced_unwind=yes                   \
     libc_cv_c_cleanup=yes
@@ -385,9 +372,9 @@ make install
 
 
 # hacks on top of hacks!
-mkdir -p $FAKEROOT/$PREFIX
-rm -rf $FAKEROOT/$PREFIX
-ln -sf $PREFIX $FAKEROOT/$PREFIX
+mkdir -p $FAKEROOT/$INSTPREFIX
+rm -rf $FAKEROOT/$INSTPREFIX
+ln -sf $INSTPREFIX $FAKEROOT/$INSTPREFIX
 
 
 cd $SRCDIR/$GLIBC-build
@@ -406,10 +393,8 @@ echo "press the any key"
 #read -n 1 -s anykey
 rm -rf a.out
 rm -rf dummy.c
+
 cd $TOPDIR
-
-
-
 rm -rf $SRCDIR/$GLIBC
 rm -rf $SRCDIR/$GLIBC-build
 
@@ -463,9 +448,9 @@ CXX="$TARGET-g++"                                       \
 AR="$TARGET-ar"                                         \
 RANLIB="$TARGET-ranlib"                                 \
 ../$GCC/configure                                       \
-    --prefix=$PREFIX                                    \
-    --with-local-prefix=$PREFIX                         \
-    --with-native-system-header-dir=$PREFIX/include     \
+    --prefix=$INSTPREFIX                                    \
+    --with-local-prefix=$INSTPREFIX                         \
+    --with-native-system-header-dir=$INSTPREFIX/include     \
     --disable-libstdcxx-pch                             \
     --disable-multilib                                  \
     --disable-bootstrap                                 \
@@ -483,7 +468,7 @@ make $JOBS
 make install
 
 ##symlink for any packages that use cc
-ln -sv gcc $PREFIX/bin/cc
+ln -sv gcc $INSTPREFIX/bin/cc
 
 
 #read the elf and verify correctness.
@@ -515,16 +500,14 @@ AR="$TARGET-ar"                                         \
 AS="$TARGET-as"                                         \
 RANLIB="$TARGET-ranlib"                                 \
 ./configure                                             \
-    --prefix=$PREFIX                                    \
+    --prefix=$INSTPREFIX                                    \
     --without-bash-malloc
 
 make $JOBS
 make install
+ln -sv bash $INSTPREFIX/bin/sh
 
-#symlink bash to sh!!
-ln -sv bash $PREFIX/bin/sh
 cd $TOPDIR
-
 rm -rf $SRCDIR/$BASH
 rm -rf $SRCDIR/$BASH-build
 
@@ -542,7 +525,7 @@ AR="$TARGET-ar"                                         \
 AS="$TARGET-as"                                         \
 RANLIB="$TARGET-ranlib"                                 \
 make $JOBS
-make PREFIX=$PREFIX install
+make PREFIX=$INSTPREFIX install
 
 cd $TOPDIR
 rm -rf $SRCDIR/$BZIP2
@@ -564,7 +547,7 @@ AR="$TARGET-ar"                                         \
 AS="$TARGET-as"                                         \
 RANLIB="$TARGET-ranlib"                                 \
 ./configure                                             \
-    --prefix=$PREFIX                                    \
+    --prefix=$INSTPREFIX                                    \
     --enable-install-program=hostname
 
 make $JOBS
@@ -587,7 +570,7 @@ CXX="$TARGET-g++"                                       \
 AR="$TARGET-ar"                                         \
 AS="$TARGET-as"                                         \
 RANLIB="$TARGET-ranlib"                                 \
-./configure --prefix=$PREFIX
+./configure --prefix=$INSTPREFIX
 
 make $JOBS
 make install
@@ -608,7 +591,7 @@ CXX="$TARGET-g++"                                       \
 AR="$TARGET-ar"                                         \
 AS="$TARGET-as"                                         \
 RANLIB="$TARGET-ranlib"                                 \
-./configure --prefix=$PREFIX
+./configure --prefix=$INSTPREFIX
 make $JOBS
 make install
 
@@ -628,7 +611,7 @@ CXX="$TARGET-g++"                                       \
 AR="$TARGET-ar"                                         \
 AS="$TARGET-as"                                         \
 RANLIB="$TARGET-ranlib"                                 \
-./configure --prefix=$PREFIX
+./configure --prefix=$INSTPREFIX
 make $JOBS
 make install
 
@@ -649,7 +632,7 @@ CXX="$TARGET-g++"                                       \
 AR="$TARGET-ar"                                         \
 AS="$TARGET-as"                                         \
 RANLIB="$TARGET-ranlib"                                 \
-./configure --prefix=$PREFIX
+./configure --prefix=$INSTPREFIX
 make $JOBS
 make install
 
@@ -670,7 +653,7 @@ CXX="$TARGET-g++"                                       \
 AR="$TARGET-ar"                                         \
 AS="$TARGET-as"                                         \
 RANLIB="$TARGET-ranlib"                                 \
-./configure --prefix=$PREFIX
+./configure --prefix=$INSTPREFIX
 make $JOBS
 make install
 
@@ -692,7 +675,7 @@ CXX="$TARGET-g++"                                       \
 AR="$TARGET-ar"                                         \
 AS="$TARGET-as"                                         \
 RANLIB="$TARGET-ranlib"                                 \
-./configure --prefix=$PREFIX
+./configure --prefix=$INSTPREFIX
 make $JOBS
 make install
 
@@ -714,7 +697,7 @@ CXX="$TARGET-g++"                                       \
 AR="$TARGET-ar"                                         \
 AS="$TARGET-as"                                         \
 RANLIB="$TARGET-ranlib"                                 \
-./configure --prefix=$PREFIX
+./configure --prefix=$INSTPREFIX
 make $JOBS
 make install
 
@@ -737,7 +720,7 @@ AR="$TARGET-ar"                                         \
 AS="$TARGET-as"                                         \
 RANLIB="$TARGET-ranlib"                                 \
 ./configure             \
-    --prefix=$PREFIX    \
+    --prefix=$INSTPREFIX    \
     --without-guile
 make $JOBS
 make install
@@ -759,7 +742,7 @@ CXX="$TARGET-g++"                                       \
 AR="$TARGET-ar"                                         \
 AS="$TARGET-as"                                         \
 RANLIB="$TARGET-ranlib"                                 \
-./configure --prefix=$PREFIX
+./configure --prefix=$INSTPREFIX
 make $JOBS
 make install
 
@@ -781,7 +764,7 @@ CXX="$TARGET-g++"                                       \
 AR="$TARGET-ar"                                         \
 AS="$TARGET-as"                                         \
 RANLIB="$TARGET-ranlib"                                 \
-./configure --prefix=$PREFIX
+./configure --prefix=$INSTPREFIX
 make $JOBS
 make install
 
@@ -802,7 +785,7 @@ CXX="$TARGET-g++"                                       \
 AR="$TARGET-ar"                                         \
 AS="$TARGET-as"                                         \
 RANLIB="$TARGET-ranlib"                                 \
-./configure --prefix=$PREFIX
+./configure --prefix=$INSTPREFIX
 make $JOBS
 make install
 
@@ -823,7 +806,7 @@ CXX="$TARGET-g++"                                       \
 AR="$TARGET-ar"                                         \
 AS="$TARGET-as"                                         \
 RANLIB="$TARGET-ranlib"                                 \
-./configure --prefix=$PREFIX
+./configure --prefix=$INSTPREFIX
 make $JOBS
 make install
 
@@ -837,6 +820,7 @@ echo "###############################################################"
 echo "
 newnet none
 home_exec
+tmp_exec
 
 home r   /system-pkgs
 home rwx /toolchain
@@ -852,7 +836,7 @@ home rwxR /sbin
 home rwxR /share
 home rwxR /var
 home rwxR /usr
-" > "$PREFIX/phase2.pod"
+" > "$INSTPREFIX/phase2.pod"
 set +e
 echo "removing cross compiler"
 find . -iname "*$TARGET*" -exec rm -rfv {} \;
@@ -862,12 +846,12 @@ echo "strip debug info from binaries? (faster compression time)  y / n ]"
 ack="y"
 #read -n 1 -s ack
 if [ "$ack" == "y" ] || [ "$ack" == "Y" ]; then
-	cd $PREFIX
-	find -type f -exec $PREFIX/bin/strip --strip-debug {} \;
-	cd $PREFIX/bin
-	find -type f -exec $PREFIX/bin/strip --strip-unneeded {} \;
-	cd $PREFIX/sbin
-	find -type f -exec $PREFIX/bin/strip --strip-unneeded {} \;
+	cd $INSTPREFIX
+	find -type f -exec $INSTPREFIX/bin/strip --strip-debug {} \;
+	cd $INSTPREFIX/bin
+	find -type f -exec $INSTPREFIX/bin/strip --strip-unneeded {} \;
+	cd $INSTPREFIX/sbin
+	find -type f -exec $INSTPREFIX/bin/strip --strip-unneeded {} \;
 
 	cd $TOPDIR
 fi
@@ -877,33 +861,33 @@ echo "strip extras (documentation, share data) y / n ]"
 ack="y"
 #read -n 1 -s ack
 if [ "$ack" == "y" ] || [ "$ack" == "Y" ]; then
-	cd $PREFIX
-	rm -rfv $PREFIX/share/{info,man,doc}
+	cd $INSTPREFIX
+	rm -rfv $INSTPREFIX/share/{info,man,doc}
 	cd $TOPDIR
 fi
 
 cd $TOPDIR
 echo "compressing toolchain (very slow if not stripped)"
-$PREFIX/bin/tar -cJf toolchain.tar.xz toolchain
+$INSTPREFIX/bin/tar -cJf toolchain.tar.xz toolchain
 
 echo "-------------------------------------------------------"
 echo "---------------- checksum generation ------------------"
 echo "-------------------------------------------------------"
 echo ""
 echo "                          MD5"
-$PREFIX/bin/md5sum toolchain.tar.xz
+$INSTPREFIX/bin/md5sum toolchain.tar.xz
 echo ""
 echo "                          SHA1"
-$PREFIX/bin/sha1sum toolchain.tar.xz
+$INSTPREFIX/bin/sha1sum toolchain.tar.xz
 echo ""
 echo "                         SHA256"
-$PREFIX/bin/sha256sum toolchain.tar.xz
+$INSTPREFIX/bin/sha256sum toolchain.tar.xz
 echo ""
 echo "                         SHA384"
-$PREFIX/bin/sha384sum toolchain.tar.xz
+$INSTPREFIX/bin/sha384sum toolchain.tar.xz
 echo ""
 echo "                         SHA512"
-$PREFIX/bin/sha512sum toolchain.tar.xz
+$INSTPREFIX/bin/sha512sum toolchain.tar.xz
 echo ""
 echo "-------------------------------------------------------"
 echo "  write these down and store somewhere non-digital :S "
