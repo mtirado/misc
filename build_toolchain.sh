@@ -822,6 +822,9 @@ newnet none
 home_exec
 tmp_exec
 
+file rwd /dev/null
+file rwd /dev/zero
+
 home r   /system-pkgs
 home rwx /toolchain
 
