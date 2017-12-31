@@ -10,7 +10,7 @@ umask 022
 GLIBC_KERNELVERSION=3.10
 
 # compiler parallel jobs
-JOBS='-j3'
+JOBS='-j2'
 
 TOPDIR=/podhome
 INSTPREFIX=/usr
@@ -23,16 +23,16 @@ export LC_ALL=C
 export PATH=/bin:/usr/bin:$TOOLCHAIN/bin
 
 # CORE SYSTEM
-BINUTILS=binutils-2.28
+BINUTILS=binutils-2.29
 GMP=gmp-6.1.2
-MPFR=mpfr-3.1.5
+MPFR=mpfr-3.1.6
 MPC=mpc-1.0.3
-GCC_VERSION=7.1.0
+GCC_VERSION=7.2.0
 GCC=gcc-$GCC_VERSION
-LINUX=linux-4.9.29
-GLIBC=glibc-2.25
+LINUX=linux-4.14.8
+GLIBC=glibc-2.26
 BASH=bash-4.4
-COREUTILS=coreutils-8.27
+COREUTILS=coreutils-8.28
 DIFFUTILS=diffutils-3.6
 SED=sed-4.4
 GAWK=gawk-4.1.4
@@ -42,13 +42,13 @@ FINDUTILS=findutils-4.6.0
 GZIP=gzip-1.8
 PATCH=patch-2.7.5
 MAKE=make-4.2.1
-TAR=tar-1.29
-UTIL_LINUX=util-linux-2.29.2
+TAR=tar-1.30
+UTIL_LINUX=util-linux-2.31
 ZLIB=zlib-1.2.11
 XZ=xz-5.2.3
 BZIP2=bzip2-1.0.6
 FILE=file-5.30
-E2FSPROGS=e2fsprogs-1.43
+E2FSPROGS=e2fsprogs-1.43.7
 KMOD=kmod-24
 
 #TCL=tcl-8.6.2
@@ -108,10 +108,10 @@ cd $SRCDIR/$LINUX
 make mrproper
 echo "installing linux headers"
 make INSTALL_HDR_PATH=dest headers_install
-find dest/include \( -name .install -o -name ..install.cmd \) -delete
+#find dest/include \( -name .install -o -name ..install.cmd \) -delete
 cp -rv dest/include/* $INSTPREFIX/include
-cd $INSTPREFIX/include
-find -name '*.install*' -exec rm -v ./{} \;
+#cd $INSTPREFIX/include
+#find -name '*.install*' -exec rm -v ./{} \;
 cd $TOPDIR
 rm -rf $SRCDIR/$LINUX
 
@@ -187,7 +187,7 @@ echo "# Begin /etc/ld.so.conf
 
 echo "adjusting the toolchain"
 
-#we want to use the 2'nd linker that has overridden paths
+#we want to use the 2'nd linker that has /lib interp path
 mv -vf $TOOLCHAIN/bin/{ld,ld-old}
 mv -vf $TOOLCHAIN/$(gcc -dumpmachine)/bin/{ld,ld-old}
 mv -vf $TOOLCHAIN/bin/{ld-new,ld}
@@ -294,19 +294,21 @@ cd $SRCDIR/$BINUTILS
 mkdir $SRCDIR/$BINUTILS-build
 cd $SRCDIR/$BINUTILS-build
 
-../$BINUTILS/configure  \
-    --prefix=/usr       \
-    --enable-shared     \
-    --disable-werror	\
-    --enable-libssp	\
+../$BINUTILS/configure     \
+    --prefix=/usr          \
+    --enable-shared        \
+    --disable-werror       \
+    --enable-libssp	   \
+    --enable-vtable-verify \
     --with-system-zlib
 
 #    --enable-gold
-#--enable-vtable-verify -- for vtv i suppose
 
-make $JOBS tooldir=/usr
+make $JOBS
+#make $JOBS tooldir=/usr
 #make -k check > $TESTDIR/$BINUTILS.make-check
-make tooldir=/usr install
+make install
+#make tooldir=/usr install
 
 cd $TOPDIR
 rm -rf $SRCDIR/$BINUTILS
@@ -325,9 +327,8 @@ cd $SRCDIR/$GMP
 #if building 64bit, you may omit this variable
 ABI=32              \
 ./configure         \
-    --prefix=/usr   \
-    --enable-cxx
-#    --docdir=/usr/share/doc/$GMP
+    --prefix=/usr
+#    --enable-cxx
 make $JOBS
 
 #requires perl
@@ -353,9 +354,8 @@ decompress $MPFR $SRCDIR
 cd $SRCDIR/$MPFR
 
 ./configure                 \
-    --prefix=/usr           \
-    --enable-thread-safe    \
-    --docdir=/usr/share/doc/$MPFR
+    --prefix=/usr
+#    --enable-thread-safe
 make $JOBS
 #make html
 #make check > $TESTDIR/$MPFR.make-check
@@ -375,8 +375,7 @@ decompress $MPC $SRCDIR
 cd $SRCDIR/$MPC
 
 ./configure                 \
-    --prefix=/usr           \
-    --docdir=/usr/share/doc/$MPC
+    --prefix=/usr
 make $JOBS
 #make html
 #make check > $TESTDIR/$MPC.make-check
@@ -408,10 +407,10 @@ SED=sed                         \
     --disable-multilib          \
     --disable-bootstrap         \
     --with-system-zlib          \
+    --disable-lto		\
     --enable-languages=c,c++
 #    --disable-libvtv		\
 #    --disable-libsanitizer	\
-#    --disable-lto		\
 
 make $JOBS
 
@@ -433,17 +432,13 @@ cd $SRCDIR/$GCC-build
 
 make install
 
-#ln -sv ../usr/bin/cpp /lib
 #cc symlink
 ln -sv gcc /usr/bin/cc
 
-#enable building with link time optimization(LTO)
-#install -v -dm755 /usr/lib/bfd-plugins
-#ln -sfv ../../libexec/gcc/$(gcc -dumpmachine)/4.9.1/liblto_plugin.so /usr/lib/bfd-plugins/
 #read the elf and verify correctness.
 echo -e "\n\n\n**************************************************\n\
     running readelf binary test\nconfirm that this is the toolchain dynamic linker\n\
-    eg /podhome/toolchain/lib/ld-linux.so.2\n\
+    eg /lib/ld-linux.so.2\n\
     **************************************************"
 echo 'int main(){return 0;}' > dummy.c
 cc dummy.c -v -Wl,--verbose &> dummy.log
@@ -483,6 +478,8 @@ echo "press the any key"
 #read -n 1 -s anykey
 
 cd $TOPDIR
+
+
 rm -rf $SRCDIR/$GCC
 rm -rf $SRCDIR/$GCC-build
 
@@ -503,11 +500,11 @@ echo "extracting $BASH"
 decompress $BASH $SRCDIR
 cd $SRCDIR/$BASH
 
-./configure --prefix=/usr                    \
-            --bindir=/bin                    \
-            --docdir=/usr/share/doc/$BASH    \
-            --without-bash-malloc
-#            --with-installed-readline
+./configure --prefix=/usr  	             	\
+            --bindir=/bin                       \
+            --without-bash-malloc		\
+	    --disable-rpath			\
+	    --disable-net-redirection
 make $JOBS
 
 #requires shadow
@@ -527,17 +524,11 @@ echo "extracting $COREUTILS"
 decompress $COREUTILS $SRCDIR
 cd $SRCDIR/$COREUTILS
 
-#patch for multibytes locale character boundary??
-#probably important if you need internationalization compliance
-#patch -Np1 -i ../coreutils-8.23-i18n-1.patch &&
-#touch Makefile.in
-
 ./configure		\
     --prefix=/usr
 
 #must have shadow installed to su
 #make NON_ROOT_USERNAME=nobody check-root
-
 # no shadow installed right now so i commented these out
 #echo "dummy:x:1000:nobody" >> /etc/group
 #chown -Rv nobody .
@@ -551,17 +542,17 @@ make $JOBS
 make install
 
 #Move programs to the locations specified by the FHS:
-mv -vf /usr/bin/{cat,chgrp,chmod,chown,cp,date,dd,df,echo} /bin
-mv -vf /usr/bin/{false,ln,ls,mkdir,mknod,mv,pwd,rm} /bin
-mv -vf /usr/bin/{rmdir,stty,sync,true,uname} /bin
-mv -vf /usr/bin/chroot /sbin
+#mv -vf /usr/bin/{cat,chgrp,chmod,chown,cp,date,dd,df,echo} /bin
+#mv -vf /usr/bin/{false,ln,ls,mkdir,mknod,mv,pwd,rm} /bin
+#mv -vf /usr/bin/{rmdir,stty,sync,true,uname} /bin
+#mv -vf /usr/bin/chroot /sbin
 #mv -v /usr/share/man/man1/chroot.1 /usr/share/man/man8/chroot.8
 #sed -i s/\"1\"/\"8\"/1 /usr/share/man/man8/chroot.8
 
 #Some of the scripts in the LFS-Bootscripts package depend on head,
 #sleep, and nice. As /usr may not be available during the early stages
 #of booting, those binaries need to be on the root partition:
-#mv -v /usr/bin/{head,sleep,nice,test,[} /bin
+#mv -vf /usr/bin/{head,sleep,nice,test,[} /bin
 
 
 cd $TOPDIR
@@ -578,18 +569,19 @@ cd $SRCDIR/$BZIP2
 
 
 #ensures sumbolic links are relative
-sed -i 's@\(ln -s -f \)$(PREFIX)/bin/@\1@' Makefile
+#sed -i 's@\(ln -s -f \)$(PREFIX)/bin/@\1@' Makefile
 
 make $JOBS -f Makefile-libbz2_so
 make clean
 make $JOBS
-make INSTPREFIX=/usr install
-cp -vf bzip2-shared /bin/bzip2
-cp -avf libbz2.so* /lib
-ln -svf ../../lib/libbz2.so.1.0 /usr/lib/libbz2.so
-rm -vf /usr/bin/{bunzip2,bzcat,bzip2}
-ln -svf bzip2 /bin/bunzip2
-ln -svf bzip2 /bin/bzcat
+make PREFIX=/usr install
+# XXX make sure this goes to the right dir (NOT /usr)
+#cp -vf bzip2-shared /bin/bzip2
+#cp -avf libbz2.so* /lib
+#ln -svf ../../lib/libbz2.so.1.0 /usr/lib/libbz2.so
+#rm -vf /usr/bin/{bunzip2,bzcat,bzip2}
+#ln -svf bzip2 /bin/bunzip2
+#ln -svf bzip2 /bin/bzcat
 
 
 cd $TOPDIR
@@ -679,16 +671,16 @@ echo "extracting $XZ"
 decompress $XZ $SRCDIR
 cd $SRCDIR/$XZ
 
-./configure --prefix=/usr --docdir=/usr/share/doc/$XZ
+./configure --prefix=/usr
 make $JOBS
 #make check
 make install
 
 #move to /bin
-mv -v   /usr/bin/{lzma,unlzma,lzcat,xz,unxz,xzcat} /bin
-mv -v /usr/lib/liblzma.so* /lib
-ln -svf /lib/liblzma.so.5 /lib/liblzma.so
-ln -svf ../../lib/liblzma.so.5 /usr/lib/liblzma.so
+#mv -v   /usr/bin/{lzma,unlzma,lzcat,xz,unxz,xzcat} /bin
+#mv -v /usr/lib/liblzma.so* /lib
+#ln -svf /lib/liblzma.so.5 /lib/liblzma.so
+#ln -svf ../../lib/liblzma.so.5 /usr/lib/liblzma.so
 #ln -svf ../../lib/$(readlink /usr/lib/liblzma.so) /usr/lib/liblzma.so
 
 cd $TOPDIR
@@ -702,51 +694,49 @@ echo "extracting $GZIP"
 decompress $GZIP $SRCDIR
 cd $SRCDIR/$GZIP
 
-./configure --prefix=/usr --bindir=/bin
+./configure --prefix=/usr
 make $JOBS
 #make check
 make install
 
 # move these out of /bin
-mv -v /bin/{gzexe,uncompress,zcmp,zdiff,zegrep} /usr/bin
-mv -v /bin/{zfgrep,zforce,zgrep,zless,zmore,znew} /usr/bin
+#mv -v /bin/{gzexe,uncompress,zcmp,zdiff,zegrep} /usr/bin
+#mv -v /bin/{zfgrep,zforce,zgrep,zless,zmore,znew} /usr/bin
 
 cd $TOPDIR
 rm -rf $SRCDIR/$GZIP
 
 
-###############################################################
+################################################################
 # KMOD
 ###############################################################
-echo "extracting $KMOD"
-decompress $KMOD $SRCDIR
-cd $SRCDIR/$KMOD
+#echo "extracting $KMOD"
+#decompress $KMOD $SRCDIR
+#cd $SRCDIR/$KMOD
 
 ##these flags are needed if you don't wish to use pkg-config
-liblzma_CFLAGS="-I/usr/include"     \
-liblzma_LIBS="-L/lib -llzma"        \
-zlib_CFLAGS="-I/usr/include"        \
-zlib_LIBS="-L/lib -lz"              \
-./configure --prefix=/usr           \
-            --bindir=/bin           \
-            --sysconfdir=/etc       \
-            --with-rootlibdir=/lib  \
-            --with-xz               \
-            --with-zlib
+#liblzma_CFLAGS="-I/usr/include"     \
+#liblzma_LIBS="-L/lib -llzma"        \
+#zlib_CFLAGS="-I/usr/include"        \
+#zlib_LIBS="-L/lib -lz"              \
+#./configure --prefix=/usr           \
+#            --sysconfdir=/etc       \
+#            --with-rootlibdir=/lib  \
+#            --with-xz               \
+#            --with-zlib
 
-make $JOBS
-#make check
-make install
+#make $JOBS
+##make check
+#make install
 
-#create symlinks
-for target in depmod insmod modinfo modprobe rmmod; do
-  ln -sv ../bin/kmod /sbin/$target
-done
+##create symlinks
+##for target in depmod insmod modinfo modprobe rmmod; do
+##  ln -sv ../bin/kmod /sbin/$target
+##done
+##ln -sv kmod /sbin/lsmod
 
-ln -sv kmod /bin/lsmod
-
-cd $TOPDIR
-rm -rf $SRCDIR/$KMOD
+#cd $TOPDIR
+#rm -rf $SRCDIR/$KMOD
 
 
 
@@ -791,14 +781,13 @@ echo "extracting $TAR"
 decompress $TAR $SRCDIR
 cd $SRCDIR/$TAR
 
-./configure --prefix=/usr \
-            --bindir=/bin
+./configure --prefix=/usr
 
 make $JOBS
 #make check
 make install
 
-#make -C doc install-html docdir=/usr/share/doc/$TAR
+#make -C doc install-html
 
 
 cd $TOPDIR
@@ -809,30 +798,27 @@ rm -rf $SRCDIR/$TAR
 ################################################################
 ## UTIL_LINUX
 ################################################################
-echo "extracting $UTIL_LINUX"
-decompress $UTIL_LINUX $SRCDIR
-cd $SRCDIR/$UTIL_LINUX
+#echo "extracting $UTIL_LINUX"
+#decompress $UTIL_LINUX $SRCDIR
+#cd $SRCDIR/$UTIL_LINUX
 
 
-#fixes a regression test?
-#sed -e 's/2^64/(2^64/' -e 's/E </E) <=/' -e 's/ne /eq /' \
-#    -i tests/ts/ipcs/limits2
+##fixes a regression test?
+##sed -e 's/2^64/(2^64/' -e 's/E </E) <=/' -e 's/ne /eq /' \
+##    -i tests/ts/ipcs/limits2
 
-# if you really need this in /var you should probably be using strictly UTC
-#mkdir -pv /var/lib/hwclock
-#ADJTIME_PATH=/var/lib/hwclock/adjtime	\
-	./configure			\
-	--disable-use-tty-group		\
-	--docdir=/usr/share/doc/$UTIL_LINUX
-make $JOBS
-#make check
-#TODO see notes about the tests for this..
-
-make install
-#TODO move certain programs to /sbin: mount.
-
-cd $TOPDIR
-rm -rf $SRCDIR/$UTIL_LINUX
+#./configure				\
+#	--prefix=/usr			\
+#	--disable-use-tty-group
+#make $JOBS
+##make check
+##TODO see notes about the tests for this..
+#
+#make install
+##TODO move certain programs to /sbin: mount.
+#
+#cd $TOPDIR
+#rm -rf $SRCDIR/$UTIL_LINUX
 
 
 
@@ -844,9 +830,7 @@ decompress $SED $SRCDIR
 cd $SRCDIR/$SED
 
 ./configure         \
-    --prefix=/usr   \
-    --bindir=/bin   \
-    --htmldir=/usr/share/doc/sed-4.2.2
+    --prefix=/usr
 
 make $JOBS
 #make html
@@ -866,7 +850,7 @@ decompress $DIFFUTILS $SRCDIR
 cd $SRCDIR/$DIFFUTILS
 
 #First fix a file so locale files are installed:
-sed -i 's:= @mkdir_p@:= /bin/mkdir -p:' po/Makefile.in.in
+#sed -i 's:= @mkdir_p@:= /bin/mkdir -p:' po/Makefile.in.in
 
 
 ./configure --prefix=/usr
@@ -878,32 +862,30 @@ cd $TOPDIR
 rm -rf $SRCDIR/$DIFFUTILS
 
 
-###############################################################
-# E2FSPROGS
-###############################################################
-echo "extracting $E2FSPROGS"
-decompress $E2FSPROGS $SRCDIR
-cd $SRCDIR/$E2FSPROGS
-mkdir -v build
-cd build
-PKG_CONFIG=/bin/true				\
-CFLAGS="-I/usr/include -I/usr/local/include"    \
-../configure --prefix=$INSTPREFIX       \
-             --bindir=/bin          \
-             --sbindir=/sbin        \
-             --with-root-prefix=""
-             #--enable-elf-shlib
-make
-make install
-
-cd $TOPDIR
-rm -rf $SRCDIR/$E2FSPROGS
+################################################################
+## E2FSPROGS
+################################################################
+#echo "extracting $E2FSPROGS"
+#decompress $E2FSPROGS $SRCDIR
+#cd $SRCDIR/$E2FSPROGS
+#mkdir -v build
+#cd build
+##CFLAGS="-I/usr/include -I/usr/local/include"    \
+#PKG_CONFIG=/usr/bin/true		\
+#../configure --prefix=/usr              \
+#             --with-root-prefix=""
+#             #--enable-elf-shlib
+#make
+#make install
+#
+#cd $TOPDIR
+#rm -rf $SRCDIR/$E2FSPROGS
 
 
 ##############################################################
 # TERMCAP FILE
 ##############################################################
-cp -rv $PKGDIR/termcap /etc/termcap
+#cp -rv $PKGDIR/termcap /etc/termcap
 
 
 echo ---------------------------------------------
