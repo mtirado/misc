@@ -85,8 +85,8 @@ echo "creating default DNS server entry: $DNSSERV"
 echo "nameserver $DNSSERV" > $NEWROOT/etc/resolv.conf
 
 echo "creating nsswitch.conf:"
-echo "passwd:		compat
-group:		compat
+echo "passwd:		files
+group:		files
 hosts:		files dns
 networks:	files
 services:	files
