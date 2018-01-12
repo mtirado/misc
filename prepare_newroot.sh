@@ -18,6 +18,7 @@ mkdir -vp $NEWROOT/usr/local/{bin,sbin,lib,include,share}
 chmod -v 0750 $NEWROOT/sbin
 chmod -v 0750 $NEWROOT/usr/sbin
 chmod -v 0750 $NEWROOT/usr/local/sbin
+mkdir $NEWROOT/pkg-scripts
 chmod -v 0750 $NEWROOT/pkg-scripts
 # setup PODROOT_HOME directories
 ln -sv $NEWROOT/bin     $HOME/bin
