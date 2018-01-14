@@ -133,7 +133,9 @@ cd $SRCDIR/$GLIBC-build
     --enable-kernel=$GLIBC_KERNELVERSION	\
     --enable-stackguard-randomization		\
     --enable-stack-protector=strong		\
-    --enable-bind-now
+    --enable-bind-now				\
+    --disable-build-nscd			\
+    --disable-nscd
 
 # --enable-lock-elision=yes/no -- some intel specific TSX hack for pthread mutex.
 # --enable-bind-now resolve PLT on DSO load, instead of on demand via trampoline
