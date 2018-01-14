@@ -293,14 +293,15 @@ decompress $GCC $SRCDIR
 mkdir $SRCDIR/libstdc++-build
 cd $SRCDIR/libstdc++-build
 
-../$GCC/libstdc++-v3/configure	\
-    --host=$TARGET		\
-    --prefix=$TOOLS		\
-    --disable-multilib		\
-    --disable-nls		\
-    --disable-libstdcxx-threads	\
-    --disable-libstdcxx-pch	\
-    --disable-shared            \
+../$GCC/libstdc++-v3/configure				\
+    --host=$TARGET					\
+    --prefix=$TOOLS					\
+    --disable-multilib					\
+    --disable-nls					\
+    --disable-libstdcxx-threads				\
+    --disable-libstdcxx-pch				\
+    --disable-shared            			\
+    --with-default-libstdcxx-abi=gcc4-compatible	\
     --with-gxx-include-dir=$TOOLS/$TARGET/include/c++/$GCC_VERSION
 make $JOBS
 make install

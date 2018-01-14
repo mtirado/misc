@@ -405,10 +405,14 @@ SED=sed                         \
 ../$GCC/configure               \
     --prefix=/usr               \
     --disable-multilib          \
-    --disable-bootstrap         \
+    --enable-bootstrap		\
+    --with-gnu-ld		\
     --with-system-zlib          \
-    --disable-lto		\
-    --enable-languages=c,c++
+    --enable-languages=c,c++	\
+    --enable-threads=posix	\
+    --enable-__cxa_atexit	\
+    --with-default-libstdcxx-abi=gcc4-compatible
+#    --disable-lto		\
 #    --disable-libvtv		\
 #    --disable-libsanitizer	\
 
