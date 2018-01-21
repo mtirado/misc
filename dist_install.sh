@@ -54,7 +54,7 @@ cd "$PKGTMP"
 
 echo "installing root packages"
 sleep 1
-if [ "$OVERRIDE_CONTENTS" != "" ];
+if [ "$OVERRIDE_CONTENTS" != "" ]; then
 	PKGOVERWRITE=1 pkg-deliver.sh $FLOCK_ROOT "$OVERRIDE_CONTENTS/flock-root"
 else
 	PKGOVERWRITE=1 pkg-deliver.sh $FLOCK_ROOT
@@ -62,7 +62,7 @@ fi
 
 echo "installing usr packages"
 sleep 1
-if [ "$OVERRIDE_CONTENTS" != "" ];
+if [ "$OVERRIDE_CONTENTS" != "" ]; then
 	PKGOVERWRITE=1 pkg-deliver.sh $FLOCK_USR "$OVERRIDE_CONTENTS/flock-usr"
 else
 	PKGOVERWRITE=1 pkg-deliver.sh $FLOCK_USR
