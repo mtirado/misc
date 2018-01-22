@@ -34,7 +34,8 @@ fi
 
 copy_git_dir()
 {
-	for FILE in $(git ls-files); do
+
+	IFS=; (git ls-files -z) | while read -r -d $'\0' FILE; do
 		if [ -d "$FILE" ]; then
 			echo "DIR [$FILE]"
 			if [ -f "$FILE/.git" ]; then
